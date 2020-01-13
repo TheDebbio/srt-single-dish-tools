@@ -153,7 +153,7 @@ class WSHandler(tornado.websocket.WebSocketHandler):
         return True
 
     def open(self):
-        log.info('Got connection from {}'.format(self.request.host_name))
+        log.info('Got connection from {}'.format(self.request.remote_ip))
         self.connected_clients.add(self)
         # Send all the images to new clients
         keys = self.images.keys()
@@ -161,8 +161,7 @@ class WSHandler(tornado.websocket.WebSocketHandler):
             self.send_image(index)
 
     def on_close(self):
-        self.connected_clients.remove(self)
-        log.info('Client {} disconnected'.format(self.request.host_name))
+        self._close()
 
     def on_message(self, message):
         pass
@@ -172,7 +171,16 @@ class WSHandler(tornado.websocket.WebSocketHandler):
             'index': index,
             'image': self.images[index]
         }
-        self.write_message(json.dumps(message))
+        try:
+            self.write_message(json.dumps(message))
+        except tornado.websocket.WebSocketClosedError:
+            self.on_close()
+
+    def _close(self):
+        if self.connected_clients.get(self):
+            self.connected_clients.remove(self)
+            log.info('Client {} disconnected'.format(self.request.remote_ip))
+
 
 class HTTPHandler(tornado.web.RequestHandler):
     def get(self):
@@ -248,10 +256,4 @@ class WebServer(object):
         index, image_string = self._load_image(image_file)
         clients = self.connected_clients
         for client in clients:
-            try:
-                self.ioloop.add_callback(client.send_image, index)
-            except tornado.websocket.WebSocketClosedError:
-                try:
-                    self.connected_clients.remove()
-                except KeyError:
-                    pass
+            self.ioloop.add_callback(client.send_image, index)
