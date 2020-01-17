@@ -174,10 +174,10 @@ class WSHandler(tornado.websocket.WebSocketHandler):
         try:
             self.write_message(json.dumps(message))
         except tornado.websocket.WebSocketClosedError:
-            self.on_close()
+            self._close()
 
     def _close(self):
-        if self.connected_clients.get(self):
+        if self in self.connected_clients:
             self.connected_clients.remove(self)
             log.info('Client {} disconnected'.format(self.request.remote_ip))
 
