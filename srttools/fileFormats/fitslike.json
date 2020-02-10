@@ -1,0 +1,11 @@
+{
+
+	"observation" :  [
+			"source", 
+			"telescope",
+			 "site",
+			 "date"],
+	"if" : [
+		]
+
+}

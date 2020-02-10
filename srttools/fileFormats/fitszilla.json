@@ -1,23 +1,16 @@
 {
- 	"tables" : [
-	    {"PRIMARY": 0},
-	    {"SECTION_TABLE": 1},
-	    {"RF_INPUTS": 2},
-	    {"FEED_TABLE": 3},
-	    {"DATA_TABLE": 4},
-	    {"ANTENNA_TEMP_TABLE": 5},
-	    {"SERVO_TABLE": 6}],
+ 	"tables": {
+	    "PRIMARY": 0,
+	    "SECTION_TABLE": 1,
+	    "RF_INPUTS": 2,
+	    "FEED_TABLE": 3,
+	    "DATA_TABLE": 4,
+	    "ANTENNA_TEMP_TABLE": 5,
+	    "SERVO_TABLE": 6},
 
-	 "components" :{
-		"observation" :{	
-
-			"fitslike" : [
-				"source", 
-				"telescope",
-				 "site",
-				 "date"],
-		
-			"parser" : {
+	 "components": {
+		"observation": {		
+			"parser": {
 				"source": ["PRIMARY", "HEADER", "SOURCE"],
 				"site": ["PRIMARY", "HEADER", "ANTENNA"],        
 				"date": ["PRIMARY", "HEADER", "DATE"]

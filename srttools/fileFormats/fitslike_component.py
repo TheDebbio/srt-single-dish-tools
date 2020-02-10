@@ -7,15 +7,18 @@ Created on Fri Feb  7 12:15:50 2020
 """
 from fitslike_commons import Fitslike_commons
 
+
 class Fitslike_component():
     """Fitslike semanti component interface"""
-    
-    def __init__(self,p_keywordsList):
+
+    def __init__(self, p_componentName, p_keywordsList):
         """
         Store fitslike keyword dictionary
 
         Parameters
         ----------
+        p_ componentName : component name
+            String id of this object
         p_keywordsList : keyword list
             List of this object fitslike keyword
 
@@ -24,10 +27,11 @@ class Fitslike_component():
         None.
 
         """
+        self.m_name = p_componentName
         self.m_helper = Fitslike_commons()
         self.m_keywordsDict = self.m_helper \
             .build_attribute_dict(p_keywordsList)
-        
+
     def update(self, p_key, p_value):
         """
         Updates keyword value and type
