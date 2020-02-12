@@ -5,7 +5,9 @@ Root representation of fits like data set
 It's the contatiner for a generic scan data set representation
 """
 import fitslike_commons
-import fitslike_obsData
+import fitslike_observation
+import fitslike_spectrum
+import fitslike_map
 import os
 import json
 import logging
@@ -24,6 +26,8 @@ class Fitslike():
 
     def __init__(self):
         """Composing Fitslike object"""
+        self.m_commons = fitslike_commons.Fitslike_commons()
+        self.m_logger = logging.getLogger(self.m_commons.logger_name())
         self.m_fitslikeJson = None
         self._load_json()
         self.m_componentData = None
@@ -43,7 +47,7 @@ class Fitslike():
                 try:
                     self.m_fitslikeJson = json.load(l_jsonFitslike)
                 except IOError:
-                    logging.error('Json file definition not' +
+                    self.m_logger.error('Json file definition not' +
                                   'found for fitslike')
 
     def _build_components(self):
@@ -56,9 +60,19 @@ class Fitslike():
 
         """
         l_obsKeywords = self.m_fitslikeJson['observation']
-        self.m_obsData = fitslike_obsData.Fitslike_obsdata('observation',
+        self.m_observation = fitslike_observation.Fitslike_observation('observation',
                                                            l_obsKeywords)
-        self.m_componentData = {'observation': self.m_obsData}
+        l_spectrumKeywords = self.m_fitslikeJson['spectrum']
+        self.m_spectrum = fitslike_spectrum.Fitslike_spectrum('spectrum',
+                                                           l_spectrumKeywords)
+        l_mapKeywords = self.m_fitslikeJson['map']
+        self.m_map = fitslike_map.Fitslike_map('map',
+                                                           l_mapKeywords)
+        self.m_componentData = {
+                                'observation': self.m_observation,
+                                'spectrum': self.m_spectrum,
+                                'map': self.m_map
+                                }
 
     def update(self, p_key, p_value):
         """

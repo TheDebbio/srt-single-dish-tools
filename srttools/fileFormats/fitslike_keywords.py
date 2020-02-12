@@ -9,6 +9,7 @@ import json
 import os
 import logging
 import pdb
+import fitslike_commons
 
 class Keyword_json():
     """Json keyword reader
@@ -33,6 +34,8 @@ class Keyword_json():
         None
 
         """
+        self.m_commons = fitslike_commons.Fitslike_commons()
+        self.m_logger = logging.getLogger(self.m_commons.logger_name())
         self.m_jsonDefs = None
         self.m_components = None
         # Input fits type, reading json parsing definition
@@ -43,7 +46,7 @@ class Keyword_json():
                     # Json definition loaded
                     self.m_jsonDefs = json.load(l_jsonFile)
                 except IOError:
-                    logging.error('Json file definition not found for '
+                    self.m_logger.error('Json file definition not found for '
                                   + p_fitsType)
                     return
         # Decoding json definitions

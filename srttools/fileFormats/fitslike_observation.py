@@ -5,14 +5,13 @@ import fitslike_keywords
 import fitslike_component
 
 
-class Fitslike_obsdata(fitslike_component.Fitslike_component):
-    """Container for observation genereic data"""
+class Fitslike_observation(fitslike_component.Fitslike_component):
+    """Container for observation fitslike data"""
 
     def __init__(self, p_componentName, p_keywords):
         """
         Obs data generation starting from input file dict and a dedicated
-        parser.
-        Observation data resides on m_obsdata dictionary.
+        parser.        
 
         Parameters
         p_componentName: string fitslike component name

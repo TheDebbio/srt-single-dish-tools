@@ -1,10 +1,21 @@
 # -*- coding: utf-8 -*-
-"""Commons objects
-"""
+"""Fitslike commons helper"""
 
 
 class Fitslike_commons():
     """Helper class"""
+
+    @staticmethod
+    def logger_name():
+        """
+        Getter logger name
+
+        Returns
+        -------
+        String with logger name.
+
+        """
+        return 'fitlike_logger'
     
     @staticmethod
     def build_attribute_dict(p_lstAttributes):

@@ -1,21 +1,71 @@
 {
  	"tables": {
 	    "PRIMARY": 0,
-	    "SECTION_TABLE": 1,
-	    "RF_INPUTS": 2,
-	    "FEED_TABLE": 3,
-	    "DATA_TABLE": 4,
-	    "ANTENNA_TEMP_TABLE": 5,
-	    "SERVO_TABLE": 6},
+	    "SECTION TABLE": 1,
+	    "RF INPUTS": 2,
+	    "FEED TABLE": 3,
+	    "DATA TABLE": 4,
+	    "ANTENNA TEMP TABLE": 5,
+	    "SERVO TABLE": 6},
 
 	 "components": {
 		"observation": {		
 			"parser": {
 				"source": ["PRIMARY", "HEADER", "SOURCE"],
 				"site": ["PRIMARY", "HEADER", "ANTENNA"],        
-				"date": ["PRIMARY", "HEADER", "DATE"]
-			    }
-		 }
+				"date": ["PRIMARY", "HEADER", "DATE"],
+				"ra": ["PRIMARY", "HEADER", "RIGHTASCENSION"],
+				"dec": ["PRIMARY", "HEADER", "DECLINATION"],
+				"ra_offset": ["PRIMARY", "HEADER", "RightAscension Offset"],
+				"dec_offset": ["PRIMARY", "HEADER", "Declination Offset"],
+				"az_offset": ["PRIMARY", "HEADER", "Azimuth Offset"],
+				"el_offset": ["PRIMARY", "HEADER", "Elevation Offset"]
+		    		}		
+		 	},
+		"spectrum": {
+			"parser": {
+				"be_id": ["SECTION TABLE", "DATA", "id"],
+				"be_bins": ["SECTION TABLE", "DATA", "bins"],
+				"be_sample_rate": ["SECTION TABLE", "DATA", "sampleRate"],
+				"be_bandwidth": ["SECTION TABLE", "DATA", "bandWidth"],
+				"be_frequency": ["SECTION TABLE", "DATA", "frequency"],
+				"be_integration": ["SECTION TABLE", "HEADER", "Integration"],
+				"be_data_type":["SECTION TABLE", "DATA", "type"],
+				"fe_feeds":["RF INPUTS", "DATA", "feed"],
+				"fe_if":["RF INPUTS", "DATA", "ifChain"],
+				"fe_polarizations":["RF INPUTS", "DATA", "polarization"],
+				"fe_be_id":["RF INPUTS", "DATA", "section"],
+				"fe_frequency":["RF INPUTS", "DATA", "frequency"],
+				"fe_bandwidth":["RF INPUTS", "DATA", "bandWidth"],
+				"fe_local_oscillator":["RF INPUTS", "DATA", "localOscillator"],
+				"fe_cal_mark_temp":["RF INPUTS", "DATA", "calibrationMark"],
+				"time":["DATA TABLE", "DATA", "time"],
+				"ch0":["DATA TABLE", "DATA", "ch0"],
+				"ch1":["DATA TABLE", "DATA", "ch1"],
+				"ch2":["DATA TABLE", "DATA", "ch2"],
+				"ch3":["DATA TABLE", "DATA", "ch3"],
+				"ch4":["DATA TABLE", "DATA", "ch4"],
+				"ch5":["DATA TABLE", "DATA", "ch5"],
+				"ch6":["DATA TABLE", "DATA", "ch6"],
+				"ch7":["DATA TABLE", "DATA", "ch7"],
+				"ch8":["DATA TABLE", "DATA", "ch8"],
+				"ch0_temp":["ANTENNA TEMP TABLE", "DATA", "ch0"],
+				"ch1_temp":["ANTENNA TEMP TABLE", "DATA", "ch1"],
+				"ch2_temp":["ANTENNA TEMP TABLE", "DATA", "ch2"],
+				"ch3_temp":["ANTENNA TEMP TABLE", "DATA", "ch3"],
+				"ch4_temp":["ANTENNA TEMP TABLE", "DATA", "ch4"],
+				"ch5_temp":["ANTENNA TEMP TABLE", "DATA", "ch5"],
+				"ch6_temp":["ANTENNA TEMP TABLE", "DATA", "ch6"],
+				"ch7_temp":["ANTENNA TEMP TABLE", "DATA", "ch7"],
+				"ch8_temp":["ANTENNA TEMP TABLE", "DATA", "ch8"]
+			}
+		},
+		"map": {
+			"parser": {
+				"x_offset":["FEED TABLE", "DATA", "xOffset"],
+				"y_offset":["FEED TABLE", "DATA", "yOffset"]
+			}
+		}
 	}
 }
 
