@@ -62,8 +62,15 @@
 		},
 		"map": {
 			"parser": {
-				"x_offset":["FEED TABLE", "DATA", "xOffset"],
-				"y_offset":["FEED TABLE", "DATA", "yOffset"]
+				"fe_x_offset":["FEED TABLE", "DATA", "xOffset"],
+				"fe_y_offset":["FEED TABLE", "DATA", "yOffset"],
+				"data_ra":["DATA TABLE", "DATA", "raj2000"],
+				"data_dec":["DATA TABLE", "DATA", "decj2000"],
+				"data_az":["DATA TABLE", "DATA", "az"],
+				"data_el":["DATA TABLE", "DATA", "el"],
+				"data_par_angle":["DATA TABLE", "DATA", "par_angle"],
+				"data_derot_angle":["DATA TABLE", "DATA", "derot_angle"]
+
 			}
 		}
 	}

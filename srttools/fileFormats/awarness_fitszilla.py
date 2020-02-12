@@ -97,6 +97,9 @@ class Awarness_fitszilla():
         
         This class knows how to prepare data to fit fitslike.
         Those data are store into a processed representation.
+        Processing order is mandatory, coordinates should be processed after 
+        spectrum.
+        
 
         Returns
         -------
@@ -105,6 +108,7 @@ class Awarness_fitszilla():
         """
         self.m_processedRepr = {}
         self._process_spectrum()
+        self._process_coordinates()
         return self.m_processedRepr
         
         
@@ -169,7 +173,7 @@ class Awarness_fitszilla():
         # create dict[backend_id]= back end
         for l_zipBe in l_zipBackend:
             l_backEnds[l_zipBe[0]]= l_zipBe
-        pdb.set_trace()
+        #pdb.set_trace()
         # Creates chX_feed_pol: frontend, backend, spectrum            
         for l_elBe in l_backEnds.keys():            
             l_innerDict= {}
@@ -177,5 +181,53 @@ class Awarness_fitszilla():
             l_innerDict['frontend']= l_frontEnds[l_elBe]
             l_innerDict['spectrum']= self.m_intermediate['ch'+str(l_elBe)]
             self.m_processedRepr['ch_'+str(l_elBe)] = l_innerDict.copy()
-                    
+
+    def _process_coordinates(self):
+        """
+        Coordinate data processing
+        
+        Every data table entry fitszilla coordinates refers to central feed.
+
+        feed offsets:
+            "fe_x_offset"
+			"fe_y_offset"
+            
+        coordinates : [commons to every data table entry]           	
+			"data_ra"
+			"data_dec"
+			"data_az"
+			"data_el"
+			"data_par_angle"
+			"data_derot_angle"
+        
+            - Converts radians to arcsec ?
+            - Apply offset and rotation angle to every feed in az, el
+            - Convert final az, el in ra, dec
+            
+        Replicate coordinates for every ch_x (feed only)
+        Apply feed offset (az, el)
+        Apply derot_angle to every feed (az, el)
+        Infer ra, dec for every feed
+            
+        Returns
+        -------
+        None.
+
+        """
+        l_coordinatesDict= {
+            'data_az': self.m_intermediate['data_az'],
+            'data_el': self.m_intermediate['data_el'],
+            'data_derot_angle': self.m_intermediate['data_derot_angle']
+            }
+        pdb.set_trace()
+        # reduce feeds removing duplicate (left/right)
+        l_feedCoordinatesDict= dict.fromkeys(self.m_intermediate['fe_feeds'])
+        # copy usefull coord. for every feed
+        for l_feeds in l_feedCoordinatesDict.keys():
+            l_feedCoordinatesDict[l_feeds]= l_coordinatesDict.copy()
+        # Apply offset + rotation
+        "todo"
+        # Calculate ra, dec
+        "todo"
+            
         
