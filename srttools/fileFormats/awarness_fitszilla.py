@@ -3,12 +3,16 @@
 
     Fits format awarness, it handles fits data toward fits like representation
 """
+from astropy.coordinates import EarthLocation, AltAz, Angle, ICRS
 import astropy.io.fits as fits
+import astropy.units as unit
+from astropy.time import Time
+import numpy as np
+import copy
 import fitslike_keywords
 import fitslike_commons
 import pdb
 import logging
-
 
 class Awarness_fitszilla():
     """fitszilla data parser"""
@@ -111,6 +115,7 @@ class Awarness_fitszilla():
         self._process_coordinates()
         return self.m_processedRepr
         
+    
         
     def _process_spectrum(self):
         """
@@ -192,7 +197,8 @@ class Awarness_fitszilla():
             "fe_x_offset"
 			"fe_y_offset"
             
-        coordinates : [commons to every data table entry]           	
+        coordinates : [commons to every data table entry]    
+            "data_time"       	
 			"data_ra"
 			"data_dec"
 			"data_az"
@@ -214,20 +220,194 @@ class Awarness_fitszilla():
         None.
 
         """
+        def _coordinate_feeds_rest_angle(p_xoffsets, p_yoffsets):
+            """
+            Rest angle generation for every feed:
+                - derotaion angle in resting condition                    
+
+            Parameters
+            ----------
+            p_xoffsets : list
+                feeds X offset list
+            p_yoffsets : list
+                feeds y offset list
+
+            Returns
+            -------
+            todo
+
+            """
+            if (len(p_xoffsets)) <= 2:
+                return np.array([0].len(p_xoffsets))
+            l_npXOffsets= np.asarray(p_xoffsets)
+            l_npYOffsets= np.asarray(p_yoffsets)
+            l_num_lat_feeds= len(p_xoffsets) -1
+            l_angle_range= np.arange(1, 0, -1/l_num_lat_feeds)
+            l_rest_angle_def = l_angle_range * 2 * np.pi * unit.rad
+            l_w0= np.where((l_npXOffsets[1:] > 0) & (l_npYOffsets[1:] == 0.))[0][0]
+            return np.concatenate(([0],
+                               np.roll(l_rest_angle_def.to(unit.rad).value,
+                                       l_w0))) * unit.rad
+    
+        def _coordinates_observing_angle(p_rest_angle, p_derot_angle):
+            """
+            Observign angle calculation for one feed
+
+            Parameters
+            ----------
+            p_rest_angle : double, rad
+                feed rest angle.
+            p_derot_angle : array, rad
+                actual derotation angle 
+
+            Returns
+            -------
+            Feed observing angle
+            rad
+
+            """
+            if not hasattr(p_rest_angle, 'unit'):
+                p_rest_angle *= unit.rad
+            if not hasattr(p_derot_angle, 'unit'):
+                p_derot_angle *= unit.rad
+            #pdb.set_trace()
+            return p_rest_angle + (2 * np.pi * unit.rad - p_derot_angle)
+
+        def _coordinates_offset_needs_correction(p_coord):
+            """
+            Check this feed offset amount.
+            Nearly no offset feeds don't need correction
+
+            Parameters
+            ----------
+            p_coord : Dictionary
+                Coordinate infos for on feed         
+
+            Returns
+            -------
+            True needs correction
+
+            """            
+            if np.abs(p_coord['fe_x_offset'] * unit.rad) < \
+                np.radians(0.001 / 60.) * unit.rad and \
+                np.abs(p_coord['fe_y_offset']* unit.rad) < \
+                    np.radians(0.001 / 60.) * unit.rad:
+                    return False
+            return True
+        
+        def _coordinates_offset_corrections(p_obs_angle, p_xoffset, p_yoffset):
+            """
+            Feed offset correction at observation angle
+
+            Parameters
+            ----------
+            p_obs_angle : float rad
+                Observation angle
+            p_xoffset : float rad
+                feed x offset
+            p_xoffset : float rad
+                feed y offset
+
+            Returns
+            -------
+            Corrected feed offset float rad.
+
+            """
+            l_sep = np.sqrt(p_xoffset**2. + p_yoffset**2.)
+            l_corr_xoff = l_sep * np.cos(p_obs_angle)
+            l_corr_yoff = l_sep * np.sin(p_obs_angle)
+            return l_corr_xoff, l_corr_yoff
+            
+        def _coordinates_azel_to_radec(p_obstimes,
+                                       p_el, p_az, 
+                                       p_xoffs, p_yoffs,
+                                       p_location):
+            """
+            Converion from alt-az to ra-dec.
+            Offset must be correccted based on observation time.
+            
+            Returns:
+            --------
+            Actual ra dec lists
+            """
+            # Calculate observing angle
+            p_yoffs = p_yoffs* unit.rad
+            p_xoffs = p_xoffs* unit.rad
+            l_el = copy.deepcopy(p_el)
+            l_az = copy.deepcopy(p_az)            
+            l_el += p_yoffs.to(unit.rad).value
+            l_az += p_xoffs.to(unit.rad).value / np.cos(l_el)            
+            l_coordsAltAz = AltAz(az=Angle(l_az * unit.rad), 
+                                  alt=Angle(l_el * unit.rad),
+                           location= p_location,
+                           obstime= p_obstimes)            
+            # According to line_profiler, coords.icrs is *by far* the longest
+            # operation in this function, taking between 80 and 90% of the
+            # execution time. Need to study a way to avoid this.
+            l_coords_deg = l_coordsAltAz.transform_to(ICRS)
+            l_ra = np.radians(l_coords_deg.ra)
+            l_dec = np.radians(l_coords_deg.dec)
+            return l_ra, l_dec        
+
+        # Process coordinates for every table entries    
         l_coordinatesDict= {
+            'data_time': self.m_intermediate['data_time'],            
             'data_az': self.m_intermediate['data_az'],
             'data_el': self.m_intermediate['data_el'],
             'data_derot_angle': self.m_intermediate['data_derot_angle']
-            }
-        pdb.set_trace()
+            }        
         # reduce feeds removing duplicate (left/right)
         l_feedCoordinatesDict= dict.fromkeys(self.m_intermediate['fe_feeds'])
         # copy usefull coord. for every feed
         for l_feeds in l_feedCoordinatesDict.keys():
             l_feedCoordinatesDict[l_feeds]= l_coordinatesDict.copy()
-        # Apply offset + rotation
-        "todo"
-        # Calculate ra, dec
-        "todo"
-            
+        #pdb.set_trace()
+        # Apply offset + rotation adjust for every feed
+        # rest angle for every feed            
+        l_feedXOffsets = self.m_intermediate['fe_x_offset']
+        l_feedYOffsets = self.m_intermediate['fe_y_offset']
+        l_feedsRestAngles = _coordinate_feeds_rest_angle(l_feedXOffsets,
+                                                    l_feedYOffsets)
+        # for every feed..
+        # decor feed - coordinates dict with feed rest angle        
+        # update observing angle on feed basis
+        # offset correction at observation angle
+        # calculate ra dec
+        # copy the coordinates to processed repr on feed basis
+        for l_feed in l_feedCoordinatesDict.keys():
+            l_feedCoord = l_feedCoordinatesDict[l_feed]
+            l_feedCoord['rest_angle']= \
+                l_feedsRestAngles[l_feed]
+            l_feedCoord['fe_x_offset']= l_feedXOffsets[l_feed]
+            l_feedCoord['fe_y_offset']= l_feedYOffsets[l_feed]
+            l_feedObsAngle = _coordinates_observing_angle(
+                l_feedsRestAngles[l_feed],
+                l_feedCoord['data_derot_angle'])
+            if not _coordinates_offset_needs_correction(l_feedCoord):
+                continue
+            l_correctedXoff, l_correctedYoff = _coordinates_offset_corrections(
+                l_feedObsAngle, 
+                l_feedCoord['fe_x_offset'],
+                l_feedCoord['fe_y_offset']
+                )
+            l_obstime = Time(l_feedCoord['data_time'] * unit.day,
+                             format= 'mjd',
+                             scale= 'utc')
+            l_location = self.m_commons.get_site_location(
+                self.m_intermediate['site'].lower()
+                )
+            l_feedCoord['data_ra'], l_feedCoord['data_dec'] = \
+                _coordinates_azel_to_radec(l_obstime,
+                                           l_feedCoord['data_el'],
+                                           l_feedCoord['data_az'],
+                                           l_correctedXoff,
+                                           l_correctedYoff,
+                                           l_location)
+            for l_proc in self.m_processedRepr.keys():
+                l_chx = self.m_processedRepr[l_proc]
+                pdb.set_trace()
+                # [0] è il feed
+                # todo mettere le keyword nel processed repr
+                if l_chx['frontend'][0] == l_feed:
+                    l_chx['coordinates']= l_feedCoord.copy()
         

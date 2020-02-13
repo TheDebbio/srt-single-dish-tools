@@ -2,6 +2,10 @@
 """Fitslike commons helper"""
 
 
+from astropy.coordinates import EarthLocation, AltAz, Angle, ICRS
+import astropy.units as unit
+
+
 class Fitslike_commons():
     """Helper class"""
 
@@ -42,3 +46,17 @@ class Fitslike_commons():
         It prints key and value type part
         """
         print(p_key + " " + str(p_attributeValue))
+        
+    @staticmethod
+    def get_site_location(p_site):
+        """
+        Getter site earth location
+        """
+        locations = {
+            'srt': EarthLocation(4865182.7660, 791922.6890, 4035137.1740,
+                                  unit=unit.m),
+             'medicina': EarthLocation(Angle("11:38:49", unit.deg),
+                                       Angle("44:31:15", unit.deg),
+                                       25 * unit.meter),
+             'greenwich': EarthLocation(lat=51.477*unit.deg, lon=0*unit.deg)}
+        return locations[p_site]

@@ -14,7 +14,7 @@ import six
 import glob
 from collections.abc import Iterable
 from scipy.interpolate import interp1d
-
+import pdb
 from .utils import force_move_file
 
 
@@ -307,7 +307,7 @@ def update_table_with_offsets(new_table, xoffsets, yoffsets, inplace=False):
 
     if not inplace:
         new_table = copy.deepcopy(new_table)
-
+    
     for i in range(0, new_table['el'].shape[1]):
         obs_angle = observing_angle(rest_angles[i], new_table['derot_angle'])
 

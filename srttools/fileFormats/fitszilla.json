@@ -12,7 +12,7 @@
 		"observation": {		
 			"parser": {
 				"source": ["PRIMARY", "HEADER", "SOURCE"],
-				"site": ["PRIMARY", "HEADER", "ANTENNA"],        
+				"site": ["PRIMARY", "HEADER", "ANTENNA"],   
 				"date": ["PRIMARY", "HEADER", "DATE"],
 				"ra": ["PRIMARY", "HEADER", "RIGHTASCENSION"],
 				"dec": ["PRIMARY", "HEADER", "DECLINATION"],
@@ -62,8 +62,10 @@
 		},
 		"map": {
 			"parser": {
+				"site": ["PRIMARY", "HEADER", "ANTENNA"],
 				"fe_x_offset":["FEED TABLE", "DATA", "xOffset"],
 				"fe_y_offset":["FEED TABLE", "DATA", "yOffset"],
+				"data_time":["DATA TABLE", "DATA", "time"],
 				"data_ra":["DATA TABLE", "DATA", "raj2000"],
 				"data_dec":["DATA TABLE", "DATA", "decj2000"],
 				"data_az":["DATA TABLE", "DATA", "az"],

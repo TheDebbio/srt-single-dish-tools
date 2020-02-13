@@ -723,3 +723,5 @@ file out {file}.gdf multiple /overwrite
 fits read {file}.fits
                 """.format(file=filekey)
                 print(string, file=fobj)
+
+                      
