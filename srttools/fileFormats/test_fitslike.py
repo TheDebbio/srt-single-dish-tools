@@ -20,21 +20,19 @@ class TestFitsLike_arch():
     @staticmethod
     def test_instance():
         """Instancing fitslike object"""
-        l_fits = fitslike.Fitslike()
+        l_fits = fitslike.Fitslike(dict())
         #l_fits.dump()
 
     @staticmethod
     def test_Awareness_fitszilla_parse(p_file):
         """Parse a fitszilla through Awarness_fitszilla"""
         l_fits = fits.open(p_file)        
-        l_aware = awarness_fitszilla.Awarness_fitszilla(l_fits)
-        #pdb.set_trace()
+        l_aware = awarness_fitszilla.Awarness_fitszilla(l_fits)        
         l_intermediateDict = l_aware.parse()
-        #print(l_intermediateDict)
-        #pdb.set_trace()
         l_processedDict = l_aware.process() 
+        l_fitsLike = fitslike.Fitslike(l_processedDict)
         pdb.set_trace()
-        #print(l_processedDict)
+        l_fitsLike.dump_keys()                
 
 if __name__ == "__main__":
     l_commons = fitslike_commons.Fitslike_commons()    

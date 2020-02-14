@@ -104,7 +104,24 @@ class Awarness_fitszilla():
         Processing order is mandatory, coordinates should be processed after 
         spectrum.
         
-
+        This function creates dictionary:
+            ch_X:{
+                'frontend': {}
+                'backend': {}
+                'spectrum': {}
+                'coordinates': {}
+            }
+        for every channel from fitszilla, hence data are packed on feed-data
+        basis.
+            
+        _process_spectrum defines :
+            'frontend'
+            'backend'
+            'spectrum'
+            
+        _process_coordinates defines:
+            'coordinates'
+            
         Returns
         -------
         Processed data representation.
@@ -154,6 +171,18 @@ class Awarness_fitszilla():
         None.
 
         """
+        " todo portare fuori el definizioni dei dizionari"
+        # Front end dict keys
+        l_feDictKeys= [
+            'be_id', 'feed', 'if', 'polarizations',
+            'frequency', 'bandwidth',
+            'local_oscillator', 'cal_mark_temp'
+            ]
+        # Back end dic keys
+        l_beDictKeys= [
+            'id', 'bins', 'sample_rate',
+            'bandwith', 'frequency', 'data_type'
+            ]
         # zip front end
         l_frontEnds= {}
         l_zipFrontEnds = zip(self.m_intermediate['fe_be_id'],
@@ -165,8 +194,10 @@ class Awarness_fitszilla():
                     self.m_intermediate['fe_local_oscillator'],
                     self.m_intermediate['fe_cal_mark_temp'])
         # create dict[backend_id]= front end
+    
         for l_zipFe in l_zipFrontEnds:
-            l_frontEnds[l_zipFe[0]]= l_zipFe      
+            l_feDict= dict(zip(l_feDictKeys, l_zipFe))
+            l_frontEnds[l_feDict['be_id']]= l_feDict.copy()
         #  zip backend
         l_backEnds= {}
         l_zipBackend= zip(self.m_intermediate['be_id'],
@@ -177,8 +208,8 @@ class Awarness_fitszilla():
                     self.m_intermediate['be_data_type'])        
         # create dict[backend_id]= back end
         for l_zipBe in l_zipBackend:
-            l_backEnds[l_zipBe[0]]= l_zipBe
-        #pdb.set_trace()
+            l_beDict= dict(zip(l_beDictKeys, l_zipBe))
+            l_backEnds[l_beDict['id']]= l_beDict.copy()       
         # Creates chX_feed_pol: frontend, backend, spectrum            
         for l_elBe in l_backEnds.keys():            
             l_innerDict= {}
@@ -373,7 +404,7 @@ class Awarness_fitszilla():
         # update observing angle on feed basis
         # offset correction at observation angle
         # calculate ra dec
-        # copy the coordinates to processed repr on feed basis
+        # copy the coordinates to processed repr on feed basis        
         for l_feed in l_feedCoordinatesDict.keys():
             l_feedCoord = l_feedCoordinatesDict[l_feed]
             l_feedCoord['rest_angle']= \
@@ -383,13 +414,16 @@ class Awarness_fitszilla():
             l_feedObsAngle = _coordinates_observing_angle(
                 l_feedsRestAngles[l_feed],
                 l_feedCoord['data_derot_angle'])
-            if not _coordinates_offset_needs_correction(l_feedCoord):
-                continue
-            l_correctedXoff, l_correctedYoff = _coordinates_offset_corrections(
-                l_feedObsAngle, 
-                l_feedCoord['fe_x_offset'],
-                l_feedCoord['fe_y_offset']
-                )
+            # with feed 0 skip correction
+            if _coordinates_offset_needs_correction(l_feedCoord):                
+                l_correctedXoff, l_correctedYoff = _coordinates_offset_corrections(
+                    l_feedObsAngle, 
+                    l_feedCoord['fe_x_offset'],
+                    l_feedCoord['fe_y_offset']
+                    )
+            else:
+                l_correctedXoff = l_feedCoord['fe_x_offset']
+                l_correctedYoff = l_feedCoord['fe_y_offset']
             l_obstime = Time(l_feedCoord['data_time'] * unit.day,
                              format= 'mjd',
                              scale= 'utc')
@@ -402,12 +436,9 @@ class Awarness_fitszilla():
                                            l_feedCoord['data_az'],
                                            l_correctedXoff,
                                            l_correctedYoff,
-                                           l_location)
+                                           l_location)                
             for l_proc in self.m_processedRepr.keys():
                 l_chx = self.m_processedRepr[l_proc]
-                pdb.set_trace()
-                # [0] è il feed
-                # todo mettere le keyword nel processed repr
-                if l_chx['frontend'][0] == l_feed:
+                if l_chx['frontend']['feed'] == l_feed:
                     l_chx['coordinates']= l_feedCoord.copy()
         

@@ -5,11 +5,6 @@ Root representation of fits like data set
 It's the contatiner for a generic scan data set representation
 """
 import fitslike_commons
-import fitslike_observation
-import fitslike_spectrum
-import fitslike_map
-import os
-import json
 import logging
 
 
@@ -24,81 +19,40 @@ class Fitslike():
         - Map
     """
 
-    def __init__(self):
-        """Composing Fitslike object"""
+    def __init__(self, p_representation):
+        """
+        Istantiate Fitslike object
+        Takes an already processed representation from *fits input file.
+        This high level rep might be processed again here.
+        
+        
+            Parameters:
+                p_representation: dict
+                    Generic fits like representation
+                    
+        """
         self.m_commons = fitslike_commons.Fitslike_commons()
         self.m_logger = logging.getLogger(self.m_commons.logger_name())
-        self.m_fitslikeJson = None
-        self._load_json()
-        self.m_componentData = None
-        self._build_components()
-
-    def _load_json(self):
-        """
-        Private, handles loading json fitslike defs
-
-        Returns
-        -------
-        None
-
-        """
-        if os.path.exists('fitslike.json'):
-            with open('fitslike.json', 'r') as l_jsonFitslike:
-                try:
-                    self.m_fitslikeJson = json.load(l_jsonFitslike)
-                except IOError:
-                    self.m_logger.error('Json file definition not' +
-                                  'found for fitslike')
-
-    def _build_components(self):
-        """
-        Private, fitslike component builder
-
-        Returns
-        -------
-        None.
-
-        """
-        l_obsKeywords = self.m_fitslikeJson['observation']
-        self.m_observation = fitslike_observation.Fitslike_observation('observation',
-                                                           l_obsKeywords)
-        l_spectrumKeywords = self.m_fitslikeJson['spectrum']
-        self.m_spectrum = fitslike_spectrum.Fitslike_spectrum('spectrum',
-                                                           l_spectrumKeywords)
-        l_mapKeywords = self.m_fitslikeJson['map']
-        self.m_map = fitslike_map.Fitslike_map('map',
-                                                           l_mapKeywords)
-        self.m_componentData = {
-                                'observation': self.m_observation,
-                                'spectrum': self.m_spectrum,
-                                'map': self.m_map
-                                }
-
-    def update(self, p_key, p_value):
-        """
-        Ask to every component to update the key, if the key is owned by the
-        component itself.
-        Every key added is unique hence it's usefull to parse additional
-        tables from multi-table fits input files
-
-        Parameters
-        ----------
-        p_dict : dictionary
-            { column : data - type }
-
-        p_parser : parser object
-            Parser per estrarre la keyword e trasformarla in rappresentazione
-            generica
-
-        Returns
-        -------
-        None.
-
-        """
-        for l_component in self.m_componentData.values():
-            l_component.update(p_key, p_value)
+        self.m_inputRepr = p_representation.copy()
+        
 
     def dump(self):
-        """Object contents dumping"""
-        for l_component in self.m_componentData.values():
-            l_component.dump()
+        """Object contents dumping"""        
+        print(self.m_inputRepr)
+        
+    def dump_keys(self):
+        """Nested keys dumping"""
+        
+        def _recursive(p_dict):
+            """Iteration """
+            for l_key, l_value in p_dict.items():
+                if type(l_value) is dict:
+                    yield from _recursive(l_value)
+                else:
+                    yield (l_key, l_value)
+        
+        # iterations
+        for l_key, l_value in _recursive(self.m_inputRepr):
+            print(l_key)
+            
+            
