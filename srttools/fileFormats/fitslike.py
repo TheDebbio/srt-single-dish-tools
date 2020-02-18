@@ -6,6 +6,8 @@ It's the contatiner for a generic scan data set representation
 """
 import fitslike_commons
 import logging
+import numpy as np
+import pdb
 
 
 class Fitslike():
@@ -28,14 +30,81 @@ class Fitslike():
         
             Parameters:
                 p_representation: dict
-                    Generic fits like representation
+                    Generic fits like representation                
                     
         """
         self.m_commons = fitslike_commons.Fitslike_commons()
         self.m_logger = logging.getLogger(self.m_commons.logger_name())
         self.m_inputRepr = p_representation.copy()
+        self.m_processedRepr={}
         
 
+    def data_channel_integration(self):
+        """
+        Data and relative coordinates mean channel per channel
+        The average is done along one channel over different spectrums
+        Bins per bins ( vertically along data matrix )
+        
+        Warning: It doesn't take into account if data needs to be averaged.
+        i.e. it doesn't check if this is a map or not
+        It means it modifies:
+            - coordinates : [commons to every data table entry]    
+                "data_time"       	
+    			"data_ra"
+    			"data_dec"
+    			"data_az"
+    			"data_el"
+            - spectrum
+        
+        New key on processed data, same as obove
+        "integrated_data"={
+            "data_time"       	
+    		"data_ra"
+    		"data_dec"
+    		"data_az"
+    		"data_el"
+            "spectrum"
+        }
+        
+        Returns
+        -------
+        A new keyword 'channel_integration' added to m_processedRepr with:
+            
+        Numpy array with the same bin number, where every bin is averaged
+        with the corresponding binf from other spectrum data entries.
+        
+        Averaged az, el, ra, dec
+
+        """
+        "todo diversificare spettri da stokes"
+        l_processedDictKeys = ["data_time", "data_ra", "data_dec",
+                               "data_az", "data_el", "spectrum"]         
+        for l_ch in self.m_inputRepr.keys():
+            l_chx= self.m_inputRepr[l_ch]               
+            try:
+                l_coord_time= l_chx['coordinates']['data_time']
+                l_coord_ra= l_chx['coordinates']['data_ra']
+                l_coord_dec= l_chx['coordinates']['data_dec']
+                l_coord_az= l_chx['coordinates']['data_az']
+                l_coord_el= l_chx['coordinates']['data_el']                
+                l_spectrum= l_chx['spectrum']
+            except KeyError as e:
+                self.m_logger.error("key not found :" + e.args[0])
+                return {}
+            l_coord_time= np.mean(l_coord_time, axis= 0)
+            l_coord_ra= np.mean(l_coord_ra, axis= 0)
+            l_coord_dec= np.mean(l_coord_dec, axis= 0)
+            l_coord_az= np.mean(l_coord_az, axis= 0)
+            l_coord_el= np.mean(l_coord_el, axis= 0)            
+            l_spectrum= np.mean(l_spectrum, axis= 0)
+            l_intDataList= [l_coord_time, l_coord_ra, l_coord_dec,
+                            l_coord_az, l_coord_el, l_spectrum]
+            l_intDataDict= dict(zip(l_processedDictKeys,l_intDataList))            
+            self.m_processedRepr[l_ch]= {}
+            self.m_processedRepr[l_ch]['integrated_data']= \
+                l_intDataDict.copy()
+        return self.m_processedRepr
+        
     def dump(self):
         """Object contents dumping"""        
         print(self.m_inputRepr)

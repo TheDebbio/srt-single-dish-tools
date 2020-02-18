@@ -11,15 +11,15 @@
 	 "components": {
 		"observation": {		
 			"parser": {
-				"source": ["PRIMARY", "HEADER", "SOURCE"],
-				"site": ["PRIMARY", "HEADER", "ANTENNA"],   
-				"date": ["PRIMARY", "HEADER", "DATE"],
-				"ra": ["PRIMARY", "HEADER", "RIGHTASCENSION"],
-				"dec": ["PRIMARY", "HEADER", "DECLINATION"],
-				"ra_offset": ["PRIMARY", "HEADER", "RightAscension Offset"],
-				"dec_offset": ["PRIMARY", "HEADER", "Declination Offset"],
-				"az_offset": ["PRIMARY", "HEADER", "Azimuth Offset"],
-				"el_offset": ["PRIMARY", "HEADER", "Elevation Offset"]
+				"obs_source": ["PRIMARY", "HEADER", "SOURCE"],
+				"obs_site": ["PRIMARY", "HEADER", "ANTENNA"],   
+				"obs_date": ["PRIMARY", "HEADER", "DATE"],
+				"obs_ra": ["PRIMARY", "HEADER", "RIGHTASCENSION"],
+				"obs_dec": ["PRIMARY", "HEADER", "DECLINATION"],
+				"obs_ra_offset": ["PRIMARY", "HEADER", "RightAscension Offset"],
+				"obs_dec_offset": ["PRIMARY", "HEADER", "Declination Offset"],
+				"obs_az_offset": ["PRIMARY", "HEADER", "Azimuth Offset"],
+				"obs_el_offset": ["PRIMARY", "HEADER", "Elevation Offset"]
 		    		}		
 		 	},
 		"spectrum": {

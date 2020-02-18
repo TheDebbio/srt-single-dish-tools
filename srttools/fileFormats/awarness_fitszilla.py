@@ -128,10 +128,33 @@ class Awarness_fitszilla():
 
         """
         self.m_processedRepr = {}
+        self._process_observation()
         self._process_spectrum()
         self._process_coordinates()
         return self.m_processedRepr
-        
+            
+    def _process_observation(self):
+        """
+        General observation data review
+        Cope with apporpiated phys. units
+
+        Returns
+        -------
+        None.
+
+        """        
+        self.m_intermediate['obs_ra'] = \
+            self.m_intermediate['obs_ra'] * unit.rad
+        self.m_intermediate['obs_dec'] = \
+            self.m_intermediate['obs_dec']* unit.rad
+        self.m_intermediate['obs_ra_offset'] = \
+            self.m_intermediate['obs_ra_offset'] *unit.rad
+        self.m_intermediate['obs_dec_offset'] = \
+            self.m_intermediate['obs_dec_offset']* unit.rad
+        self.m_intermediate['obs_az_offset'] = \
+            self.m_intermediate['obs_az_offset']* unit.rad
+        self.m_intermediate['obs_el_offset'] = \
+            self.m_intermediate['obs_el_offset']*unit.rad
     
         
     def _process_spectrum(self):
@@ -171,6 +194,30 @@ class Awarness_fitszilla():
         None.
 
         """
+        
+        def _add_unit_to_fe(p_feDict):
+            """
+            Adding units to front end dictionary fields
+
+            Parameters
+            ----------
+            p_feDict : TYPE
+                DESCRIPTION.
+
+            Returns
+            -------
+            None.
+
+            """
+            p_feDict['frequency'] = p_feDict['frequency'] * unit.MHz
+            p_feDict['bandwidth'] = p_feDict['bandwidth'] * unit.MHz
+            p_feDict['local_oscillator'] = p_feDict['local_oscillator'] \
+                * unit.MHz
+            p_feDict['cal_mark_temp'] = p_feDict['cal_mark_temp'] \
+                * unit.K
+                
+                
+        
         " todo portare fuori el definizioni dei dizionari"
         # Front end dict keys
         l_feDictKeys= [
@@ -193,29 +240,32 @@ class Awarness_fitszilla():
                     self.m_intermediate['fe_bandwidth'],
                     self.m_intermediate['fe_local_oscillator'],
                     self.m_intermediate['fe_cal_mark_temp'])
-        # create dict[backend_id]= front end
-    
+        # create dict[backend_id]= front end    
         for l_zipFe in l_zipFrontEnds:
-            l_feDict= dict(zip(l_feDictKeys, l_zipFe))
+            l_feDict= dict(zip(l_feDictKeys, l_zipFe))            
+            # Adding units
+            _add_unit_to_fe(l_feDict)
             l_frontEnds[l_feDict['be_id']]= l_feDict.copy()
         #  zip backend
         l_backEnds= {}
         l_zipBackend= zip(self.m_intermediate['be_id'],
-                    self.m_intermediate['be_bins'],
+                    self.m_intermediate['be_bins'] ,
                     self.m_intermediate['be_sample_rate'],
                     self.m_intermediate['be_bandwidth'],
-                    self.m_intermediate['be_frequency'],                    
+                    self.m_intermediate['be_frequency'], 
                     self.m_intermediate['be_data_type'])        
         # create dict[backend_id]= back end
         for l_zipBe in l_zipBackend:
             l_beDict= dict(zip(l_beDictKeys, l_zipBe))
-            l_backEnds[l_beDict['id']]= l_beDict.copy()       
+            l_backEnds[l_beDict['id']]= l_beDict.copy()  
         # Creates chX_feed_pol: frontend, backend, spectrum            
         for l_elBe in l_backEnds.keys():            
             l_innerDict= {}
             l_innerDict['backend']= l_backEnds[l_elBe]
             l_innerDict['frontend']= l_frontEnds[l_elBe]
-            l_innerDict['spectrum']= self.m_intermediate['ch'+str(l_elBe)]
+            l_innerDict['spectrum']= np.asarray(
+                self.m_intermediate['ch'+str(l_elBe)]
+                )
             self.m_processedRepr['ch_'+str(l_elBe)] = l_innerDict.copy()
 
     def _process_coordinates(self):
@@ -318,11 +368,11 @@ class Awarness_fitszilla():
             -------
             True needs correction
 
-            """            
-            if np.abs(p_coord['fe_x_offset'] * unit.rad) < \
+            """               
+            if np.abs(p_coord['fe_x_offset'] ) < \
                 np.radians(0.001 / 60.) * unit.rad and \
-                np.abs(p_coord['fe_y_offset']* unit.rad) < \
-                    np.radians(0.001 / 60.) * unit.rad:
+                np.abs(p_coord['fe_y_offset'] ) < \
+                    np.radians(0.001 / 60.)* unit.rad :
                     return False
             return True
         
@@ -361,15 +411,15 @@ class Awarness_fitszilla():
             --------
             Actual ra dec lists
             """
-            # Calculate observing angle
-            p_yoffs = p_yoffs* unit.rad
-            p_xoffs = p_xoffs* unit.rad
+            # Calculate observing angle            
+            p_yoffs = p_yoffs
+            p_xoffs = p_xoffs
             l_el = copy.deepcopy(p_el)
             l_az = copy.deepcopy(p_az)            
-            l_el += p_yoffs.to(unit.rad).value
-            l_az += p_xoffs.to(unit.rad).value / np.cos(l_el)            
-            l_coordsAltAz = AltAz(az=Angle(l_az * unit.rad), 
-                                  alt=Angle(l_el * unit.rad),
+            l_el += p_yoffs
+            l_az += p_xoffs / np.cos(l_el)            
+            l_coordsAltAz = AltAz(az=Angle(l_az), 
+                                  alt=Angle(l_el),
                            location= p_location,
                            obstime= p_obstimes)            
             # According to line_profiler, coords.icrs is *by far* the longest
@@ -378,14 +428,19 @@ class Awarness_fitszilla():
             l_coords_deg = l_coordsAltAz.transform_to(ICRS)
             l_ra = np.radians(l_coords_deg.ra)
             l_dec = np.radians(l_coords_deg.dec)
+            
             return l_ra, l_dec        
 
         # Process coordinates for every table entries    
         l_coordinatesDict= {
-            'data_time': self.m_intermediate['data_time'],            
-            'data_az': self.m_intermediate['data_az'],
-            'data_el': self.m_intermediate['data_el'],
-            'data_derot_angle': self.m_intermediate['data_derot_angle']
+            'data_time': np.asarray(self.m_intermediate['data_time']),
+            'data_az': np.asarray(self.m_intermediate['data_az']) \
+                * unit.rad,
+            'data_el': np.asarray(self.m_intermediate['data_el']) \
+                * unit.rad,
+            'data_derot_angle': np.asarray(
+                self.m_intermediate['data_derot_angle']
+                )* unit.rad
             }        
         # reduce feeds removing duplicate (left/right)
         l_feedCoordinatesDict= dict.fromkeys(self.m_intermediate['fe_feeds'])
@@ -395,8 +450,8 @@ class Awarness_fitszilla():
         #pdb.set_trace()
         # Apply offset + rotation adjust for every feed
         # rest angle for every feed            
-        l_feedXOffsets = self.m_intermediate['fe_x_offset']
-        l_feedYOffsets = self.m_intermediate['fe_y_offset']
+        l_feedXOffsets = self.m_intermediate['fe_x_offset']* unit.rad
+        l_feedYOffsets = self.m_intermediate['fe_y_offset']* unit.rad
         l_feedsRestAngles = _coordinate_feeds_rest_angle(l_feedXOffsets,
                                                     l_feedYOffsets)
         # for every feed..
