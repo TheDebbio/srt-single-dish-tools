@@ -128,6 +128,7 @@ class Awarness_fitszilla():
 
         """
         self.m_processedRepr = {}
+        self.m_scheduled= {}
         self._process_observation()
         self._process_spectrum()
         self._process_coordinates()
@@ -155,8 +156,24 @@ class Awarness_fitszilla():
             self.m_intermediate['obs_az_offset']* unit.rad
         self.m_intermediate['obs_el_offset'] = \
             self.m_intermediate['obs_el_offset']*unit.rad
-    
-        
+        "todo : trasportare le coordinate  per ogni feed?"        
+        l_scheduled= {}
+        try:
+            l_scheduled['source']= self.m_intermediate['obs_source']            
+            l_scheduled['antenna']= self.m_intermediate['obs_site']
+            l_scheduled['date']= self.m_intermediate['obs_date']
+            l_scheduled['ra']= self.m_intermediate['obs_ra']
+            l_scheduled['dec']= self.m_intermediate['obs_dec']
+            l_scheduled['ra_offset']= self.m_intermediate['obs_ra_offset']
+            l_scheduled['dec_offset']= self.m_intermediate['obs_dec_offset']
+            l_scheduled['az_offset']= self.m_intermediate['obs_az_offset']
+            l_scheduled['el_offset']= self.m_intermediate['obs_el_offset']
+            l_scheduled['signal']= self.m_intermediate['obs_signal']
+            l_scheduled['scan_type']= self.m_intermediate['obs_scantype']
+        except KeyError as e:
+            self.m_logger.error("Key exception : " + str(e))
+        self.m_scheduled= l_scheduled.copy()        
+       
     def _process_spectrum(self):
         """
         Spectrum keyword processing.
@@ -184,9 +201,11 @@ class Awarness_fitszilla():
         }    
         
         ch_X: {
+            scheduled: scheduled observation data    
             frontend: frontend[be_id]
             backend: backend[fe_id]
             spectrum
+            
         }
         
         Returns
@@ -261,6 +280,7 @@ class Awarness_fitszilla():
         # Creates chX_feed_pol: frontend, backend, spectrum            
         for l_elBe in l_backEnds.keys():            
             l_innerDict= {}
+            l_innerDict['scheduled']= self.m_scheduled.copy()
             l_innerDict['backend']= l_backEnds[l_elBe]
             l_innerDict['frontend']= l_frontEnds[l_elBe]
             l_innerDict['spectrum']= np.asarray(

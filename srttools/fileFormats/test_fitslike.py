@@ -2,17 +2,27 @@
 """Fitslike objects testing
 """
 
-import fitslike_commons
-import fitslike
-import awarness_fitszilla
-import pytest
 from astropy.io import fits
 import pdb
 import logging
+import pytest
+import fitslike_commons
+import fitslike
+import awarness_fitszilla
+import fitslike_handler
+
 
 nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/20181210-232201-24-18-W3OH/'
 nodding_zilla_1_8 = '20181210-232307-24-18-W3OH_001_008.fits'
 
+
+class TestFitslike_handler():
+    """Fitslike handler unit test"""
+    @staticmethod
+    def test_scan():
+        """Scan input file test"""
+        l_fh= fitslike_handler.Fitslike_handler('fitszilla')
+        
 
 class TestFitsLike_arch():
     """Fitslike architecture test class"""

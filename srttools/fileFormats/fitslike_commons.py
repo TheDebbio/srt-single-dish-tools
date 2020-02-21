@@ -60,3 +60,27 @@ class Fitslike_commons():
                                        25 * unit.meter),
              'greenwich': EarthLocation(lat=51.477*unit.deg, lon=0*unit.deg)}
         return locations[p_site]
+
+    @staticmethod
+    def filter_input_files(p_type):
+        """
+        Input file extension filter based         
+        
+        Parameters
+        ----------
+        p_type : string
+            input data file type
+
+        Returns
+        -------
+        None.
+
+        """    
+        l_inputDict={
+            'fitszilla': r"[\s\S]*\.fits"
+            }
+        try:
+            return l_inputDict[p_type]
+        except KeyError:
+            return ''
+        return ''
