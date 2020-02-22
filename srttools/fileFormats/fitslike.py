@@ -38,6 +38,16 @@ class Fitslike():
         self.m_inputRepr = p_representation.copy()
         self.m_processedRepr={}
         
+    def get_inputRepr(self):
+        """
+        Getter input representaion
+
+        Returns
+        -------
+        None.
+
+        """
+        return self.m_inputRepr
 
     def data_channel_integration(self):
         """
