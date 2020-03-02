@@ -8,19 +8,16 @@ Created on Fri Feb 21 18:55:45 2020
 Fitslike Handler objects testing
 """
 
-from astropy.io import fits
 import pdb
 import logging
-import pytest
 import fitslike_commons
-import fitslike
-import awarness_fitszilla
 import fitslike_handler
 
 
-nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/20181210-232201-24-18-W3OH/'
+nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/20181210-232201-24-18-W3OH_small/'
+#nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/very_small/'
+#nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/20181210-232201-24-18-W3OH/'
 nodding_zilla_1_8 = '20181210-232307-24-18-W3OH_001_008.fits'
-
 
 
 class TestFitslike_handler():
@@ -30,6 +27,8 @@ class TestFitslike_handler():
         """Scan input file test"""
         l_fh= fitslike_handler.Fitslike_handler('fitszilla')
         l_fh.scan_data(nodding_dir)
+        l_fh.group_on_off_cal()
+        #pdb.set_trace()
         
 
 if __name__ == "__main__":

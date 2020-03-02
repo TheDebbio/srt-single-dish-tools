@@ -42,7 +42,7 @@ class TestFitsLike_arch():
         l_processedDict = l_aware.process() 
         pdb.set_trace()
         l_fitsLike = fitslike.Fitslike(l_processedDict)
-        #pdb.set_trace()
+        pdb.set_trace()
         l_fitsLike_intData = l_fitsLike.data_channel_integration()
         pdb.set_trace()          
 

@@ -5,6 +5,11 @@
 from astropy.coordinates import EarthLocation, AltAz, Angle, ICRS
 import astropy.units as unit
 
+keywords= {
+    "key_on":"SIGNAL",
+    "key_off": "REFERENCE",
+    "key_cal": "REFCAL"
+}
 
 class Fitslike_commons():
     """Helper class"""
@@ -84,3 +89,4 @@ class Fitslike_commons():
         except KeyError:
             return ''
         return ''
+    

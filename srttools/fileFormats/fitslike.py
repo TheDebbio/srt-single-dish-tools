@@ -76,6 +76,8 @@ class Fitslike():
             "spectrum"
         }
         
+        New keyword 'integrated_data' is added to inputRepr keyword
+        
         Returns
         -------
         A new keyword 'channel_integration' added to m_processedRepr with:
@@ -112,6 +114,8 @@ class Fitslike():
             l_intDataDict= dict(zip(l_processedDictKeys,l_intDataList))            
             self.m_processedRepr[l_ch]= {}
             self.m_processedRepr[l_ch]['integrated_data']= \
+                l_intDataDict.copy()
+            self.m_inputRepr[l_ch]['integrated_data']= \
                 l_intDataDict.copy()
         return self.m_processedRepr
         
