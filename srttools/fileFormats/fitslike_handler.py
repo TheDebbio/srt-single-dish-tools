@@ -5,6 +5,8 @@ import re
 import logging
 import pdb
 from astropy.io import fits
+import numpy as np
+import astropy.units as unit
 import fitslike_commons
 import sys
 import fitslike
@@ -158,6 +160,7 @@ class Fitslike_handler():
             self.m_subscans= self.m_subscans + [x.get() for x in l_results]
         self.m_logger.info("subscan numbers " + str(len(self.m_subscans)))        
         
+            
         
     def group_on_off_cal(self):
         """
@@ -167,11 +170,6 @@ class Fitslike_handler():
             - Cal
         g_on_off_cal_dict will store data groups per type
         Subscan collection parsing  per feed
-
-        Returns
-        -------
-        None.
-
         """        
         
         for l_subscan in self.m_subscans:
@@ -185,3 +183,32 @@ class Fitslike_handler():
                         
                 if l_subscan[l_chx]['scheduled']['signal'] == kws["key_cal"]:
                     self.m_group_on_off_cal['cal'].append(l_subscan[l_chx])      
+  
+    def _on_off_match(self):                  
+        """
+        Look the best off for every on.
+        It works per feed.
+        Best match is intended where shortest distance occours
+        Adds a key reference to best off ch_xoff at ch_xon  
+        Looks for 
+            ['ch_x']['integrated_data']
+        Adds to ch_x new key ['best_off'] as reference to best off channel
+        """
+        for l_on in self.m_group_on_off_cal['on']:
+            l_best_off={}
+            l_dist_min = 10E6 * unit.deg
+            l_el1= l_on['integrated_data']['data_el']
+            l_az1= l_on['integrated_data']['data_az']            
+            for l_off in self.m_group_on_off_cal['off']:            
+                l_el2= l_off['integrated_data']['data_el']
+                l_az2= l_off['integrated_data']['data_az']               
+                l_dist_loc= np.sqrt(np.square(l_el1-l_el2)+\
+                                    np.square(l_az1-l_az2))
+                if ( l_dist_loc < l_dist_min):
+                    l_dist_min= l_dist_loc
+                    l_best_off= l_off
+            l_on['best_off'] = l_best_off
+            "todo eseguire il calcolo on meno off"
+            
+                
+  
