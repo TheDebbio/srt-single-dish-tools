@@ -6,18 +6,12 @@ import logging
 import pdb
 from astropy.io import fits
 import fitslike_commons
+import sys
 import fitslike
 import awarness_fitszilla
 from multiprocessing import Pool
 from fitslike_commons import keywords as kws
 
-g_subscans= [] # Subscans module data collector
-
-g_on_off_cal= {
-    "on":[],
-    "off":[],
-    "cal":[]
-    } # Subscans joined base on On Off Cal
 
 def _envelope_subscan(p_logger, p_ftype, p_path):
       """
@@ -36,43 +30,27 @@ def _envelope_subscan(p_logger, p_ftype, p_path):
       ....
 
       """
-      "todo comporre il parsing attraverso il fitslike ?" 
-      p_logger.info("Scanning " + p_path)      
+      "todo comporre il parsing attraverso il fitslike ?"       
+      p_logger.info("Scanning " + p_path)            
+          
       if  p_ftype== 'fitszilla':            
-          p_logger.info("fitszilla parsing: " + p_path)
-          l_fits = fits.open(p_path)
-          l_aware= awarness_fitszilla.Awarness_fitszilla(l_fits) 
-          l_aware.parse()
-          l_repr= l_aware.process()
-          l_fits.close()
-          l_fitslike= fitslike.Fitslike(l_repr)
-          l_fitslike.data_channel_integration() 
-          l_data= l_fitslike.get_inputRepr().copy()                    
-          l_fits =None
-          l_aware = None
-          l_fitslike= None
-          return l_data
-  
-def _subscan_callback(l_dict):
-    """
-    Call back at the end of subscan parsing process
-    Adds subscan dict to subscan data
-
-    Parameters
-    ----------
-    l_dict : dict
-        Subscan fitslike dict.
-
-    Returns
-    -------
-    None.
-
-    """    
-    global g_subscans    
-    g_subscans.append(l_dict.copy())     
-    l_dict= None
-                   
-
+          if "summary" in p_path:
+              "todo summary.fits"
+              return {}
+          else:
+              p_logger.info("fitszilla parsing: " + p_path)
+              l_fits = fits.open(p_path)
+              l_aware= awarness_fitszilla.Awarness_fitszilla(l_fits) 
+              l_aware.parse()
+              l_repr= l_aware.process()
+              l_fits.close()
+              l_fitslike= fitslike.Fitslike(l_repr)
+              l_fitslike.data_channel_integration()               
+              l_aware = None
+              l_fits =None                  
+              return l_fitslike.get_inputRepr()          
+      return {}
+                  
 class Fitslike_handler():
     """    
     Subscan master operation handler.
@@ -121,6 +99,11 @@ class Fitslike_handler():
         self.m_inputType = p_inputType
         self.m_subscans=[]
         self.m_dataDir =""        
+        self.m_group_on_off_cal={
+            'on':[],
+            'off':[],
+            'cal':[],
+            }
      
         
     def scan_data(self, p_dataDir):
@@ -155,27 +138,26 @@ class Fitslike_handler():
             l_inputFiles.extend(filenames)                    
         l_inputFiles= [f for f in l_inputFiles if re.match(l_filt,f)]
         # Split parsing multiprocessing    
-        "todo Memory Leak ad ogni pool ! se prelevi il risulato"
+        "todo Memory Leak ad ogni pool ! se prelevi il risutlato"
         " Questione non risolta"
-        #l_poolSize = 3
-        #for l_group in chunker(l_inputFiles, l_poolSize ):        
+        self.m_results=[]
+        l_poolSize= 3
+        for l_group in chunker(l_inputFiles, l_poolSize ):
+            l_results=[]
+            self.m_pool=Pool(l_poolSize)            
+            for l_fPath in l_group:                            
+                l_results.append( self.m_pool.apply_async(
+                        _envelope_subscan,
+                        [self.m_logger,
+                        'fitszilla',
+                        p_dataDir + l_fPath
+                        ])      
+                    )                          
+            self.m_pool.close()
+            self.m_pool.join()                        
+            self.m_subscans= self.m_subscans + [x.get() for x in l_results]
+        self.m_logger.info("subscan numbers " + str(len(self.m_subscans)))        
         
-        self.m_pool=Pool(len(l_inputFiles))                        
-        for l_fPath in l_inputFiles:            
-            self.m_pool.apply_async(
-                    _envelope_subscan,
-                    [self.m_logger,
-                    'fitszilla',
-                    p_dataDir + l_fPath
-                    ],
-                    callback= _subscan_callback
-                    )
-            #self.m_subscans.append(l_results)
-        self.m_pool.close()
-        self.m_pool.join()
-        self.m_pool= None 
-        self.m_logger.info("subscan numbers " + str(len(g_subscans)))
-        #pdb.set_trace()
         
     def group_on_off_cal(self):
         """
@@ -190,17 +172,16 @@ class Fitslike_handler():
         -------
         None.
 
-        """
-        for l_subscan in g_subscans:
+        """        
+        
+        for l_subscan in self.m_subscans:
             for l_chx in l_subscan:
                 # regroup by ref                 
                 if l_subscan[l_chx]['scheduled']['signal'] == kws["key_on"]:
-                    g_on_off_cal['on'].append(l_subscan[l_chx])
+                   self.m_group_on_off_cal['on'].append(l_subscan[l_chx])
                 
                 if l_subscan[l_chx]['scheduled']['signal'] == kws["key_off"]:
-                    g_on_off_cal['off'].append(l_subscan[l_chx])
+                    self.m_group_on_off_cal['off'].append(l_subscan[l_chx])
                         
                 if l_subscan[l_chx]['scheduled']['signal'] == kws["key_cal"]:
-                    g_on_off_cal['cal'].append(l_subscan[l_chx])  
-
-        
+                    self.m_group_on_off_cal['cal'].append(l_subscan[l_chx])      
