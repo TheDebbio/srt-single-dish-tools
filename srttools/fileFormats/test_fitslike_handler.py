@@ -23,7 +23,7 @@ class TestFitslike_handler():
     @staticmethod
     def test_scan():
         """Scan input file test"""
-        l_fh= fitslike_handler.Fitslike_handler('fitszilla')
+        l_fh= fitslike_handler.Fitslike_handler('fitszilla', 'nod')
         l_fh.scan_data(nodding_dir)
         l_fh.group_on_off_cal()
         l_fh._on_off_match()

@@ -350,7 +350,7 @@ def normalize_on_off_cal(table, smooth=False, apply_cal=True, use_calon=False):
         caloff = np.mean(caloff_data['SPECTRUM'], axis=0)
 
     off_ref = off
-    on_ref = on[0]
+    on_ref = on[0]    
     if smooth:
         off_ref = medfilt(off_ref, 11)
         on_ref = medfilt(on_ref, 11)

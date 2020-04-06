@@ -188,6 +188,7 @@ class Awarness_fitszilla():
 			"fe_bandwith"
 			"fe_local_oscillator"
 			"fe_cal_mark_temp"
+            "fe_flag_cal"
         }
         
         backend[frontend_id]{            
@@ -250,7 +251,7 @@ class Awarness_fitszilla():
             'bandwith', 'frequency', 'data_type'
             ]
         # zip front end
-        l_frontEnds= {}
+        l_frontEnds= {}        
         l_zipFrontEnds = zip(self.m_intermediate['fe_be_id'],
                     self.m_intermediate['fe_feeds'],
                     self.m_intermediate['fe_if'],
@@ -258,7 +259,7 @@ class Awarness_fitszilla():
                     self.m_intermediate['fe_frequency'],
                     self.m_intermediate['fe_bandwidth'],
                     self.m_intermediate['fe_local_oscillator'],
-                    self.m_intermediate['fe_cal_mark_temp'])
+                    self.m_intermediate['fe_cal_mark_temp'])                    
         # create dict[backend_id]= front end    
         for l_zipFe in l_zipFrontEnds:
             l_feDict= dict(zip(l_feDictKeys, l_zipFe))            
@@ -283,9 +284,11 @@ class Awarness_fitszilla():
             l_innerDict['scheduled']= self.m_scheduled.copy()
             l_innerDict['backend']= l_backEnds[l_elBe]
             l_innerDict['frontend']= l_frontEnds[l_elBe]
-            l_innerDict['spectrum']= np.asarray(
+            l_innerDict['spectrum']= {}
+            l_innerDict['spectrum']['data']= np.asarray(
                 self.m_intermediate['ch'+str(l_elBe)]
                 )
+            l_innerDict['spectrum']['flag_cal']= np.asarray(self.m_intermediate['data_flag_cal'])
             self.m_processedRepr['ch_'+str(l_elBe)] = l_innerDict.copy()
 
     def _process_coordinates(self):

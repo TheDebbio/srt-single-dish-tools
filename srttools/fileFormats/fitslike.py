@@ -99,7 +99,7 @@ class Fitslike():
                 l_coord_dec= l_chx['coordinates']['data_dec']
                 l_coord_az= l_chx['coordinates']['data_az']
                 l_coord_el= l_chx['coordinates']['data_el']                
-                l_spectrum= l_chx['spectrum']
+                l_spectrum= l_chx['spectrum']['data']
             except KeyError as e:
                 self.m_logger.error("key not found :" + e.args[0])
                 return {}

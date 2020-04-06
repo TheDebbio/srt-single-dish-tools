@@ -8,7 +8,14 @@ import astropy.units as unit
 keywords= {
     "key_on":"SIGNAL",
     "key_off": "REFERENCE",
-    "key_cal": "REFCAL"
+    "key_off_cal": "REFCAL",
+    "key_on_cal": "REFSIG",
+    "key_sig_cal": "SIGCAL",
+    "keys_on": ["SIGNAL", "SIGCAL", "REFSIG"],
+    "keys_off": ["REFCAL", "REFERENCE"],
+    "keys_cal_on": ["REFCAL", "SIGCAL", "REFSIG"],
+    "keys_cal_off": ["REFERENCE", "SIGNAL"]
+    
 }
 
 class Fitslike_commons():

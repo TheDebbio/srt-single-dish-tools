@@ -81,7 +81,7 @@ class Fitslike_handler():
         appropriate output conversion module)    
     """
     
-    def __init__(self, p_inputType):
+    def __init__(self, p_inputType, p_scanType):
         """
         Internal struct definition
 
@@ -90,6 +90,8 @@ class Fitslike_handler():
         p_dataDir : string
             Input scan data type
             Fitszilla etc..
+        p_dataDir : string
+            Scan type, on-off, nodding, map
 
         Returns
         -------
@@ -99,12 +101,14 @@ class Fitslike_handler():
         self.m_commons = fitslike_commons.Fitslike_commons()
         self.m_logger = logging.getLogger(self.m_commons.logger_name())
         self.m_inputType = p_inputType
+        self.m_scanType= p_scanType
         self.m_subscans=[]
         self.m_dataDir =""        
         self.m_group_on_off_cal={
             'on':[],
             'off':[],
-            'cal':[],
+            'cal_on':[],
+            'cal_off':[],
             }
      
         
@@ -154,14 +158,12 @@ class Fitslike_handler():
                         'fitszilla',
                         p_dataDir + l_fPath
                         ])      
-                    )                          
+                    )
             self.m_pool.close()
             self.m_pool.join()                        
             self.m_subscans= self.m_subscans + [x.get() for x in l_results]
         self.m_logger.info("subscan numbers " + str(len(self.m_subscans)))        
-        
-            
-        
+                            
     def group_on_off_cal(self):
         """
         Creates a new dict for :
@@ -170,25 +172,89 @@ class Fitslike_handler():
             - Cal
         g_on_off_cal_dict will store data groups per type
         Subscan collection parsing  per feed
-        """        
+        """
+        
+        def _is_cal(p_subScan):
+            """
+            Genera il flag calibrazione attiva
+
+            Parameters
+            ----------
+            p_sub : dict
+                subscan ch_x
+
+            Returns
+            -------
+            true calibrazione attiva
+
+            """            
+            l_signal= p_subScan['scheduled']['signal']
+            l_flagCal= p_subScan['spectrum']['flag_cal']            
+            if l_signal in kws['keys_cal']:
+                return True
+                " @todo keyword subtype ? "
+                " Controllar anche flag_cal any"
+            elif np.any(l_flagCal):
+                return True
+            return False
+        
+        def _is_on(p_subScan):
+            """
+            Verifica se la subscan è un on o un off
+
+            Parameters
+            ----------
+            p_subscan : dict
+                subscan ch_x
+
+            Returns
+            -------
+            None.
+
+            """
+            l_signal= p_subScan['scheduled']['signal']
+            l_flagCal= p_subScan['spectrum']['flag_cal']
+            l_feed= p_subScan['frontend']['feed']
+            if l_signal in kws['keys_on']:
+                if l_feed == 0:
+                    return True
+                else:
+                    return False
+            if l_signal == None :
+                return p_subScan['ccordinates']['az_offset'] > 1e-4 * unit.rad
+                    
         
         for l_subscan in self.m_subscans:
             for l_chx in l_subscan:
-                # regroup by ref                 
-                if l_subscan[l_chx]['scheduled']['signal'] == kws["key_on"]:
-                   self.m_group_on_off_cal['on'].append(l_subscan[l_chx])
-                
-                if l_subscan[l_chx]['scheduled']['signal'] == kws["key_off"]:
-                    self.m_group_on_off_cal['off'].append(l_subscan[l_chx])
+                if self.m_scanType == 'on_off' or self.m_scanType == 'nod':
+                    """
+                    cal_on = table['CAL_IS_ON'] == 1
+                    onsource = table['SIGNAL'] == 1
+                    on_data = table[~cal_on & onsource]
+                    off_data = table[~cal_on & ~onsource]
+                    calon_data = table[cal_on & onsource]
+                    caloff_data = table[cal_on & ~onsource]
+                    """                                          
+                    l_isCal= _is_cal(l_subscan[l_chx])
+                    l_isOn= _is_on(l_subscan[l_chx])
+                    if l_isOn and not l_isCal:
+                        self.m_group_on_off_cal['on']= l_subscan[l_chx]
+                    elif not l_isOn and not l_isCal:
+                        self.m_group_on_off_cal['off']= l_subscan[l_chx]
+                    elif l_isOn and  l_isCal:
+                        self.m_group_on_off_cal['cal_on']= l_subscan[l_chx]
+                    elif not l_isOn and  l_isCal:
+                        self.m_group_on_off_cal['cal_off']= l_subscan[l_chx]
                         
-                if l_subscan[l_chx]['scheduled']['signal'] == kws["key_cal"]:
-                    self.m_group_on_off_cal['cal'].append(l_subscan[l_chx])      
+                if self.m_scanType == 'map':                
+                    " @todo on off in caso di mappe "
+                    pass
   
     def _on_off_match(self):                  
         """
         Look the best off for every on.
         It works per feed.
-        Best match is intended where shortest distance occours
+        Best match is intended closest scan in time
         Adds a key reference to best off ch_xoff at ch_xon  
         Looks for 
             ['ch_x']['integrated_data']
@@ -196,19 +262,21 @@ class Fitslike_handler():
         """
         for l_on in self.m_group_on_off_cal['on']:
             l_best_off={}
-            l_dist_min = 10E6 * unit.deg
-            l_el1= l_on['integrated_data']['data_el']
-            l_az1= l_on['integrated_data']['data_az']            
+            l_dist_min = 10E6 
+            l_onTime= l_on['integrated_data']['data_time']            
             for l_off in self.m_group_on_off_cal['off']:            
-                l_el2= l_off['integrated_data']['data_el']
-                l_az2= l_off['integrated_data']['data_az']               
-                l_dist_loc= np.sqrt(np.square(l_el1-l_el2)+\
-                                    np.square(l_az1-l_az2))
-                if ( l_dist_loc < l_dist_min):
-                    l_dist_min= l_dist_loc
+                l_offTime= l_off['integrated_data']['data_time']               
+                l_dist= l_onTime - l_offTime
+                l_dist= abs(l_dist)
+                if ( l_dist < l_dist_min ):
+                    l_dist_min= l_dist
                     l_best_off= l_off
             l_on['best_off'] = l_best_off
-            "todo eseguire il calcolo on meno off"
+            " calcolo on meno off "
+            
+            
+            
+            
             
                 
   
