@@ -91,7 +91,7 @@ class Fitslike():
         "todo diversificare spettri da stokes"
         l_processedDictKeys = ["data_time", "data_ra", "data_dec",
                                "data_az", "data_el", "spectrum"]         
-        for l_ch in self.m_inputRepr.keys():
+        for l_ch in self.m_inputRepr.keys():            
             l_chx= self.m_inputRepr[l_ch]               
             try:
                 l_coord_time= l_chx['coordinates']['data_time']
@@ -116,7 +116,7 @@ class Fitslike():
             self.m_processedRepr[l_ch]['integrated_data']= \
                 l_intDataDict.copy()
             self.m_inputRepr[l_ch]['integrated_data']= \
-                l_intDataDict.copy()
+                l_intDataDict.copy()                  
         return self.m_processedRepr
         
     def dump(self):

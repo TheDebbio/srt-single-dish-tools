@@ -31,7 +31,7 @@ class Fitslike_commons():
         String with logger name.
 
         """
-        return 'fitlike_logger'
+        return 'root'
     
     @staticmethod
     def build_attribute_dict(p_lstAttributes):

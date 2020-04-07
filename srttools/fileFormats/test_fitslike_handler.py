@@ -26,8 +26,9 @@ class TestFitslike_handler():
         l_fh= fitslike_handler.Fitslike_handler('fitszilla', 'nod')
         l_fh.scan_data(nodding_dir)
         l_fh.group_on_off_cal()
-        l_fh._on_off_match()
-        pdb.set_trace()
+        l_fh.normalize()
+        #l_fh._on_off_match()
+        #pdb.set_trace()
         
 if __name__ == "__main__":
     l_commons = fitslike_commons.Fitslike_commons()    
@@ -35,7 +36,7 @@ if __name__ == "__main__":
     l_formatter =logging.Formatter('[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s')
     l_logCh = logging.StreamHandler()            
     l_logCh.setFormatter(l_formatter)
-    l_logger.setLevel(logging.ERROR)
+    l_logger.setLevel(logging.INFO)
     l_logger.info("Testing fitslike handler unit")
     if not len(l_logger.handlers):
         l_logger.addHandler(l_logCh)

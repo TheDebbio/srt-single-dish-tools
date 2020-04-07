@@ -11,13 +11,14 @@ import numpy as np
 import copy
 import fitslike_keywords
 import fitslike_commons
-import pdb
 import logging
+import os
+import pdb
 
 class Awarness_fitszilla():
     """fitszilla data parser"""
 
-    def __init__(self, l_fitszilla):
+    def __init__(self, l_fitszilla, p_path):
         """
         Store fitzilla file
 
@@ -28,9 +29,9 @@ class Awarness_fitszilla():
 
         Returns
         -------
-        None.
-
+        None
         """
+        l_path, self.m_fileName = os.path.split(p_path)        
         self.m_commons = fitslike_commons.Fitslike_commons() 
         self.m_jsonRepr = fitslike_keywords.Keyword_json('fitszilla')
         self.m_components = self.m_jsonRepr.fitslike_components()        
@@ -91,8 +92,9 @@ class Awarness_fitszilla():
                 try:
                     self.m_intermediate[l_key] = l_fitsTableContent[l_inputKeyword]
                 except:
-                    self.m_logger.error("Missing [table, keyword] %s: %s",
-                                        l_tableName, l_inputKeyword)                                    
+                    pass
+                    #self.m_logger.error("Missing [table, keyword] %s: %s",
+                    #                    l_key, l_inputKeyword)                                    
         return self.m_intermediate
     
     def process(self):
@@ -156,6 +158,7 @@ class Awarness_fitszilla():
             self.m_intermediate['obs_az_offset']* unit.rad
         self.m_intermediate['obs_el_offset'] = \
             self.m_intermediate['obs_el_offset']*unit.rad
+        self.m_intermediate['file_name']= self.m_fileName
         "todo : trasportare le coordinate  per ogni feed?"        
         l_scheduled= {}
         try:
@@ -170,6 +173,7 @@ class Awarness_fitszilla():
             l_scheduled['el_offset']= self.m_intermediate['obs_el_offset']
             l_scheduled['signal']= self.m_intermediate['obs_signal']
             l_scheduled['scan_type']= self.m_intermediate['obs_scantype']
+            l_scheduled['file_name']= self.m_intermediate['file_name']
         except KeyError as e:
             self.m_logger.error("Key exception : " + str(e))
         self.m_scheduled= l_scheduled.copy()        
