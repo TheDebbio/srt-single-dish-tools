@@ -347,9 +347,9 @@ class Fitslike_handler():
                 calibration_factor = 1 / meancal * l_calMarkTemp
             else:   
                 return None, ""
-            
-            for elOn in l_group['on']:
-                l_group['on_off_cal'] = elOn['integrated_data']['spectrum'] * \
+            " Calibrated spectrum added to chx"            
+            for elOn in l_group['on']:                
+                elOn['integrated_data']['calibrated'] = elOn['integrated_data']['spectrum'] * \
                                     calibration_factor
                 
                 
@@ -378,9 +378,41 @@ class Fitslike_handler():
             " calcolo on meno off "
             
 
-                
-            
-            
+    def ClassFitsAdaptations(self):
+        """
+        Generazione struttura dati secondo la definizione del classfist
+        
+        info base
+        
+        coordinate comandate in az, el o ra, dec
+        coordinate osservate in crdelt2,3
+        spettri separati per polarizzazione e per feed
+        un file per ogni uno
+        """
+        " data in group on off cal sono divisi per  "        
+        " chx "
+        "   on off cal "
+        "       [chx...]"
+        for l_ch in self.m_group_on_off_cal:              
+            for l_ch in self.m_group_on_off_cal[l_ch]['on']:
+                " ch by ch "                                
+                try:
+                    " ut "                                        
+                    l_tMjd= [t.mjd for t in l_ch['coordinates']['time_mjd']]
+                    l_ch['coordinates']['ut']= ( l_tMjd - np.floor(l_tMjd)) * 86400
+                    " date "                    
+                    l_ch['coordinates']['date']= [t.strftime('%d/%m/%y') for t \
+                                              in  l_ch['coordinates']['time_mjd']]
+                    " lsts "
+                    l_lsts= [t.sidereal_time('apparent', \
+                              fitslike_commons.Fitslike_commons.\
+                                  get_site_location(l_ch['scheduled']['antenna']).lon) \
+                              for t in l_ch['coordinates']['time_mjd']]   
+                    l_lsts= [t.value * unit.hr for t in l_lsts]                                     
+                    l_ch['coordinates']['lsts'] = [t.to('s').value for t in l_lsts]
+                except:
+                    pdb.set_trace()
+                    
             
                 
   

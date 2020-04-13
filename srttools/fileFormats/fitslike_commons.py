@@ -4,6 +4,7 @@
 
 from astropy.coordinates import EarthLocation, AltAz, Angle, ICRS
 import astropy.units as unit
+import numpy as np
 
 keywords= {
     "key_on":"SIGNAL",
@@ -71,7 +72,7 @@ class Fitslike_commons():
                                        Angle("44:31:15", unit.deg),
                                        25 * unit.meter),
              'greenwich': EarthLocation(lat=51.477*unit.deg, lon=0*unit.deg)}
-        return locations[p_site]
+        return locations[p_site.lower()]
 
     @staticmethod
     def filter_input_files(p_type):
@@ -97,3 +98,23 @@ class Fitslike_commons():
             return ''
         return ''
     
+    @staticmethod
+    def calculate_weather(p_tmp, p_u):
+        """Get the meters of H2O, using the formula from old converter.
+        Unsure if this is correct in all cases"""
+        RS = 8.314472
+        mw = 0.018015
+        md = 0.0289644
+        eps0 = mw / md
+        k1 = 77.60
+        k2 = 70.4
+        k3 = 3.739E5    
+        p_tmp = p_tmp - 273.15
+        H = (np.log10(p_u) - 2.0) / 0.4343 + (17.62 * p_tmp) / (243.12 + p_tmp)    
+        DPT = 243.12 * H / (17.62 - H)    
+        p_tmp = p_tmp + 273.15    
+        Tm = 0.673 * p_tmp + 83.0
+        C = 1E6 * mw / (k2 - k1 * eps0 + k3 / Tm) / RS
+        e0 = np.exp(1.81 + 17.27 * DPT / (DPT + 237.5))
+        ZWDS = 0.002277 * (0.005 + 1255 / p_tmp) * e0    
+        return ZWDS * C * 100.

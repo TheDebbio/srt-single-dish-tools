@@ -27,8 +27,9 @@ class TestFitslike_handler():
         l_fh.scan_data(nodding_dir)
         l_fh.group_on_off_cal()
         l_fh.normalize()
+        l_fh.ClassFitsAdaptations()
         #l_fh._on_off_match()
-        #pdb.set_trace()
+        pdb.set_trace()
         
 if __name__ == "__main__":
     l_commons = fitslike_commons.Fitslike_commons()    

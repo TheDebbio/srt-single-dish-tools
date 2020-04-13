@@ -112,6 +112,7 @@ class Awarness_fitszilla():
                 'backend': {}
                 'spectrum': {}
                 'coordinates': {}
+                'exrtas':{}
             }
         for every channel from fitszilla, hence data are packed on feed-data
         basis.
@@ -134,6 +135,7 @@ class Awarness_fitszilla():
         self._process_observation()
         self._process_spectrum()
         self._process_coordinates()
+        self._process_extras()
         return self.m_processedRepr
             
     def _process_observation(self):
@@ -173,7 +175,7 @@ class Awarness_fitszilla():
             l_scheduled['el_offset']= self.m_intermediate['obs_el_offset']
             l_scheduled['signal']= self.m_intermediate['obs_signal']
             l_scheduled['scan_type']= self.m_intermediate['obs_scantype']
-            l_scheduled['file_name']= self.m_intermediate['file_name']
+            l_scheduled['file_name']= self.m_intermediate['file_name']            
         except KeyError as e:
             self.m_logger.error("Key exception : " + str(e))
         self.m_scheduled= l_scheduled.copy()        
@@ -266,7 +268,8 @@ class Awarness_fitszilla():
                     self.m_intermediate['fe_cal_mark_temp'])                    
         # create dict[backend_id]= front end    
         for l_zipFe in l_zipFrontEnds:
-            l_feDict= dict(zip(l_feDictKeys, l_zipFe))            
+            l_feDict= dict(zip(l_feDictKeys, l_zipFe))     
+            l_feDict['fe_tsys']= 1.0
             # Adding units
             _add_unit_to_fe(l_feDict)
             l_frontEnds[l_feDict['be_id']]= l_feDict.copy()
@@ -291,9 +294,13 @@ class Awarness_fitszilla():
             l_innerDict['spectrum']= {}
             l_innerDict['spectrum']['data']= np.asarray(
                 self.m_intermediate['ch'+str(l_elBe)]
-                )
+                )                        
             l_innerDict['spectrum']['flag_cal']= np.asarray(self.m_intermediate['data_flag_cal'])
             self.m_processedRepr['ch_'+str(l_elBe)] = l_innerDict.copy()
+        
+        
+        
+        
 
     def _process_coordinates(self):
         """
@@ -505,22 +512,46 @@ class Awarness_fitszilla():
                     )
             else:
                 l_correctedXoff = l_feedCoord['fe_x_offset']
-                l_correctedYoff = l_feedCoord['fe_y_offset']
+                l_correctedYoff = l_feedCoord['fe_y_offset']            
             l_obstime = Time(l_feedCoord['data_time'] * unit.day,
                              format= 'mjd',
-                             scale= 'utc')
+                             scale= 'utc')            
+            l_feedCoord['time_mjd'] = np.asarray(l_obstime)
             l_location = self.m_commons.get_site_location(
                 self.m_intermediate['site'].lower()
                 )
+            # Final coordinates ra, dec after calculations
             l_feedCoord['data_ra'], l_feedCoord['data_dec'] = \
                 _coordinates_azel_to_radec(l_obstime,
                                            l_feedCoord['data_el'],
                                            l_feedCoord['data_az'],
                                            l_correctedXoff,
                                            l_correctedYoff,
-                                           l_location)                
+                                           l_location)  
+                
+            # coordinates dict storage
             for l_proc in self.m_processedRepr.keys():
                 l_chx = self.m_processedRepr[l_proc]
                 if l_chx['frontend']['feed'] == l_feed:
                     l_chx['coordinates']= l_feedCoord.copy()
         
+    def _process_extras(self):
+        """
+        Extra data processing
+        Filling not present keywords    
+        """                        
+        for l_proc in self.m_processedRepr.keys():            
+            l_chx = self.m_processedRepr[l_proc]
+            l_chx['extras']= {}         
+            " weather "
+            l_weather= self.m_intermediate['ex_weather']
+            l_chx['extras']['weather']= self.m_commons.calculate_weather(l_weather[1] + 273.15, l_weather[0])
+            
+                
+            
+            
+            
+            
+            
+                    
+            
