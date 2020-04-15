@@ -9,9 +9,15 @@
 	    "SERVO TABLE": 6},
 
 	 "components": {
+    	"summary":{
+        	"parser":{
+            	"sum_restfreq":["PRIMARY", "HEADER", "RESTFREQ"]
+        	}
+    	},
 		"observation": {		
 			"parser": {
 				"obs_source": ["PRIMARY", "HEADER", "SOURCE"],
+				"obs_vlsr": ["PRIMARY", "HEADER", "VLSR"],
 				"obs_site": ["PRIMARY", "HEADER", "ANTENNA"],   
 				"obs_date": ["PRIMARY", "HEADER", "DATE"],
 				"obs_ra": ["PRIMARY", "HEADER", "RIGHTASCENSION"],
@@ -40,7 +46,8 @@
 				"fe_frequency":["RF INPUTS", "DATA", "frequency"],
 				"fe_bandwidth":["RF INPUTS", "DATA", "bandWidth"],
 				"fe_local_oscillator":["RF INPUTS", "DATA", "localOscillator"],
-				"fe_cal_mark_temp":["RF INPUTS", "DATA", "calibrationMark"],						
+				"fe_cal_mark_temp":["RF INPUTS", "DATA", "calibrationMark"],
+				"fe_vlsr":["RF INPUTS", "DATA", "calibrationMark"],						
 				"time":["DATA TABLE", "DATA", "time"],
 				"ch0":["DATA TABLE", "DATA", "ch0"],
 				"ch1":["DATA TABLE", "DATA", "ch1"],

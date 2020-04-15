@@ -78,7 +78,10 @@ class Awarness_fitszilla():
                 if l_table is None:
                     self.m_logger.error("table not found %s", l_tableName)
                     return
-                l_fitsTable = self.m_fitszilla[l_table]
+                try:
+                    l_fitsTable = self.m_fitszilla[l_table]
+                except:
+                    continue    
                 # is in header or in data ?
                 l_headerOrData = fitslike_keywords.Keyword_helper.\
                     is_header_or_data(l_headerOrData)
@@ -92,9 +95,9 @@ class Awarness_fitszilla():
                 try:
                     self.m_intermediate[l_key] = l_fitsTableContent[l_inputKeyword]
                 except:
-                    pass
+                    self.m_intermediate[l_key]= 0.0                                
                     #self.m_logger.error("Missing [table, keyword] %s: %s",
-                    #                    l_key, l_inputKeyword)                                    
+                    #                    l_key, l_inputKeyword)                      
         return self.m_intermediate
     
     def process(self):
@@ -132,21 +135,28 @@ class Awarness_fitszilla():
         """
         self.m_processedRepr = {}
         self.m_scheduled= {}
-        self._process_observation()
-        self._process_spectrum()
-        self._process_coordinates()
-        self._process_extras()
+        if 'summary' in self.m_fileName :
+            self._process_summary()
+        else:    
+            self._process_observation()
+            self._process_spectrum()
+            self._process_coordinates()
+            self._process_extras()
         return self.m_processedRepr
+            
+    def _process_summary(self):
+        """
+        Keywords from summary.fits
+        """
+        l_keys= [ 'restfreq' ]        
+        l_restFreq= self.m_intermediate['sum_restfreq'] * unit.MHz
+        l_values= [l_restFreq]        
+        self.m_processedRepr['summary']= dict(zip(l_keys, l_values))
             
     def _process_observation(self):
         """
         General observation data review
         Cope with apporpiated phys. units
-
-        Returns
-        -------
-        None.
-
         """        
         self.m_intermediate['obs_ra'] = \
             self.m_intermediate['obs_ra'] * unit.rad
@@ -161,6 +171,7 @@ class Awarness_fitszilla():
         self.m_intermediate['obs_el_offset'] = \
             self.m_intermediate['obs_el_offset']*unit.rad
         self.m_intermediate['file_name']= self.m_fileName
+        self.m_intermediate['obs_vlsr'] =  unit.Unit("m/s")
         "todo : trasportare le coordinate  per ogni feed?"        
         l_scheduled= {}
         try:
@@ -176,6 +187,7 @@ class Awarness_fitszilla():
             l_scheduled['signal']= self.m_intermediate['obs_signal']
             l_scheduled['scan_type']= self.m_intermediate['obs_scantype']
             l_scheduled['file_name']= self.m_intermediate['file_name']            
+            l_scheduled['vlsr']= self.m_intermediate['vlsr']
         except KeyError as e:
             self.m_logger.error("Key exception : " + str(e))
         self.m_scheduled= l_scheduled.copy()        
@@ -235,15 +247,12 @@ class Awarness_fitszilla():
             None.
 
             """
-            p_feDict['frequency'] = p_feDict['frequency'] * unit.MHz
-            p_feDict['bandwidth'] = p_feDict['bandwidth'] * unit.MHz
-            p_feDict['local_oscillator'] = p_feDict['local_oscillator'] \
-                * unit.MHz
-            p_feDict['cal_mark_temp'] = p_feDict['cal_mark_temp'] \
-                * unit.K
-                
-                
-        
+            p_feDict['frequency'] *= unit.MHz
+            p_feDict['bandwidth'] *= unit.MHz
+            p_feDict['local_oscillator'] *= unit.MHz
+            p_feDict['cal_mark_temp'] *= unit.K
+            
+                                                
         " todo portare fuori el definizioni dei dizionari"
         # Front end dict keys
         l_feDictKeys= [
@@ -254,19 +263,21 @@ class Awarness_fitszilla():
         # Back end dic keys
         l_beDictKeys= [
             'id', 'bins', 'sample_rate',
-            'bandwith', 'frequency', 'data_type'
+            'bandwith', 'frequency', 'data_type', 'integration_time'
             ]
         # zip front end
         l_frontEnds= {}        
-        l_zipFrontEnds = zip(self.m_intermediate['fe_be_id'],
+        l_zipFrontEnds = zip(
+                    self.m_intermediate['fe_be_id'],
                     self.m_intermediate['fe_feeds'],
                     self.m_intermediate['fe_if'],
                     self.m_intermediate['fe_polarizations'],
                     self.m_intermediate['fe_frequency'],
                     self.m_intermediate['fe_bandwidth'],
                     self.m_intermediate['fe_local_oscillator'],
-                    self.m_intermediate['fe_cal_mark_temp'])                    
-        # create dict[backend_id]= front end    
+                    self.m_intermediate['fe_cal_mark_temp'],                    
+                    )     
+        # create dict[backend_id]= front end
         for l_zipFe in l_zipFrontEnds:
             l_feDict= dict(zip(l_feDictKeys, l_zipFe))     
             l_feDict['fe_tsys']= 1.0
@@ -274,16 +285,19 @@ class Awarness_fitszilla():
             _add_unit_to_fe(l_feDict)
             l_frontEnds[l_feDict['be_id']]= l_feDict.copy()
         #  zip backend
-        l_backEnds= {}
-        l_zipBackend= zip(self.m_intermediate['be_id'],
+        l_backEnds= {}                        
+        l_zipBackend= zip(
+                    self.m_intermediate['be_id'],
                     self.m_intermediate['be_bins'] ,
                     self.m_intermediate['be_sample_rate'],
                     self.m_intermediate['be_bandwidth'],
                     self.m_intermediate['be_frequency'], 
-                    self.m_intermediate['be_data_type'])        
+                    self.m_intermediate['be_data_type'],                       
+                    )
         # create dict[backend_id]= back end
         for l_zipBe in l_zipBackend:
             l_beDict= dict(zip(l_beDictKeys, l_zipBe))
+            l_beDict['integration_time']= self.m_intermediate['be_integration']
             l_backEnds[l_beDict['id']]= l_beDict.copy()  
         # Creates chX_feed_pol: frontend, backend, spectrum            
         for l_elBe in l_backEnds.keys():            
@@ -294,14 +308,10 @@ class Awarness_fitszilla():
             l_innerDict['spectrum']= {}
             l_innerDict['spectrum']['data']= np.asarray(
                 self.m_intermediate['ch'+str(l_elBe)]
-                )                        
+                )
             l_innerDict['spectrum']['flag_cal']= np.asarray(self.m_intermediate['data_flag_cal'])
             self.m_processedRepr['ch_'+str(l_elBe)] = l_innerDict.copy()
-        
-        
-        
-        
-
+                        
     def _process_coordinates(self):
         """
         Coordinate data processing

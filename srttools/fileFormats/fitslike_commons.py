@@ -5,6 +5,7 @@
 from astropy.coordinates import EarthLocation, AltAz, Angle, ICRS
 import astropy.units as unit
 import numpy as np
+import re
 
 keywords= {
     "key_on":"SIGNAL",
@@ -66,8 +67,7 @@ class Fitslike_commons():
         Getter site earth location
         """
         locations = {
-            'srt': EarthLocation(4865182.7660, 791922.6890, 4035137.1740,
-                                  unit=unit.m),
+            'srt': EarthLocation(4865182.7660, 791922.6890, 4035137.1740, unit=unit.m),
              'medicina': EarthLocation(Angle("11:38:49", unit.deg),
                                        Angle("44:31:15", unit.deg),
                                        25 * unit.meter),
@@ -98,6 +98,87 @@ class Fitslike_commons():
             return ''
         return ''
     
+    @staticmethod
+    def telescope_label_from_channel_name(p_chName):
+        """
+        Generation telescope name for feed
+        """            
+        
+        def interpret_chan_name(chan_name):
+            """Get feed, polarization and baseband info from chan name.
+        
+            Examples
+            >>> feed, polar, baseband = interpret_chan_name('blablabal')
+            >>> feed  # None
+            >>> polar  # None
+            >>> baseband  # None
+            >>> feed, polar, baseband = interpret_chan_name('Ch0')
+            >>> feed
+            0
+            >>> polar  # None
+            >>> baseband  # None
+            >>> feed, polar, baseband = interpret_chan_name('Feed1_LCP')
+            >>> feed
+            1
+            >>> polar
+            'LCP'
+            >>> baseband  # None
+            >>> feed, polar, baseband = interpret_chan_name('Feed2_LCP_3')
+            >>> feed
+            2
+            >>> polar
+            'LCP'
+            >>> baseband
+            3
+            """
+            chan_re = re.compile(r'^Ch([0-9]+)$'
+                         r'|^Feed([0-9]+)_([a-zA-Z]+)$'
+                         r'|^Feed([0-9]+)_([a-zA-Z]+)_([0-9]+)$')
+            
+            matchobj = chan_re.match(chan_name)
+            if not matchobj:
+                return None, None, None
+        
+            matches = [matchobj.group(i) for i in range(7)]
+            polar, baseband = None, None
+            if matches[6] is not None:
+                baseband = int(matchobj.group(6))
+                polar = matchobj.group(5)
+                feed = int(matchobj.group(4))
+            elif matches[3] is not None:
+                polar = matchobj.group(3)
+                feed = int(matchobj.group(2))
+            else:
+                feed = int(matchobj.group(1))
+    
+            return feed, polar, baseband
+        
+        _, polar, _ = interpret_chan_name(p_chName)
+    
+        if polar.startswith('L'):
+            return 'LL'
+        elif polar.startswith('R'):
+            return 'RR'
+        elif polar.startswith('Q'):
+            return 'LR'
+        elif polar.startswith('U'):
+            return 'RL'
+        else:
+            raise ValueError('Unrecognized polarization')
+    
+    @staticmethod 
+    def class_telescope_name(p_scan):
+        """
+        Generazione strigna telescope classfits
+        @todo da definire..tradurre con le funziona sopra
+        """
+        return '{}-{}-{}-{}'.format(
+                        p_scan['scheduled']['site'],
+                        p_scan['frontend']['receiver'],
+                        p_scan['frontend'],
+                        p_scan['frontend']['polarization']
+                        )
+
     @staticmethod
     def calculate_weather(p_tmp, p_u):
         """Get the meters of H2O, using the formula from old converter.

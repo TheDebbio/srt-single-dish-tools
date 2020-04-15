@@ -7,6 +7,8 @@ from astropy.io import fits
 from collections.abc import Iterable
 import numpy as np
 import astropy.units as unit
+from astropy.time import Time
+import astropy.constants as const
 import fitslike_commons
 import sys
 import fitslike
@@ -36,26 +38,22 @@ def _envelope_subscan(p_logger, p_ftype, p_path):
       "todo comporre il parsing attraverso il fitslike ?"       
       p_logger.info("Scanning " + p_path)            
           
-      if  p_ftype== 'fitszilla':            
-          if "summary" in p_path:
-              "todo summary.fits"
-              return {}
-          else:
-              l_path, l_filename= os.path.split(p_path)
-              p_logger.info("fitszilla parsing: " + p_path)
-              l_fits = fits.open(p_path)
-              l_aware= awarness_fitszilla.Awarness_fitszilla(l_fits, p_path) 
-              l_aware.parse()
-              l_repr= l_aware.process()
-              l_fits.close()
-              l_fitslike= fitslike.Fitslike(l_repr)              
-              l_fitslike.data_channel_integration()               
-              l_aware = None
-              l_fits =None                  
-              l_repr= l_fitslike.get_inputRepr()          
-              l_repr['file_name']= l_filename
-              return l_repr
-      return {}
+      if  p_ftype== 'fitszilla':                      
+        l_path, l_filename= os.path.split(p_path)
+        p_logger.info("fitszilla parsing: " + p_path)
+        l_fits = fits.open(p_path)
+        l_aware= awarness_fitszilla.Awarness_fitszilla(l_fits, p_path) 
+        l_aware.parse()
+        l_repr= l_aware.process()
+        l_fits.close()
+        l_fitslike= fitslike.Fitslike(l_repr)       
+        if not l_fitslike.is_summary():
+            l_fitslike.data_channel_integration()               
+        l_aware = None
+        l_fits =None                  
+        l_repr= l_fitslike.get_inputRepr()          
+        l_repr['file_name']= l_filename
+        return l_repr
                   
 class Fitslike_handler():
     """    
@@ -109,8 +107,12 @@ class Fitslike_handler():
         self.m_subscans=[]
         self.m_dataDir =""        
         self.m_group_on_off_cal={}
+        self.m_summary= {}
      
-        
+    def get_summary(self):
+        """Getter summary"""
+        return self.m_summary
+    
     def scan_data(self, p_dataDir):
         """
         Takes data input directory and launchs subscan data conversion
@@ -163,6 +165,8 @@ class Fitslike_handler():
             self.m_subscans= self.m_subscans + [x.get() for x in l_results]
         self.m_logger.info("subscan numbers " + str(len(self.m_subscans)))        
                             
+        
+        
     def group_on_off_cal(self):
         """
         Creates a new dict for :
@@ -238,9 +242,7 @@ class Fitslike_handler():
                     return True
             if l_signal == None :
                 return p_subScan['ccordinates']['az_offset'] > 1e-4 * unit.rad
-                    
-            
-            
+                                
         " ordino le subscan in base al file name "        
         self.m_subscans= sorted(self.m_subscans,\
                                 key= lambda item:('file_name' not in item, item.get('file_name', None)))        
@@ -248,6 +250,12 @@ class Fitslike_handler():
         for l_subscan in self.m_subscans:     
             if 'file_name' in l_subscan:
                 self.m_logger.info(l_subscan['file_name'])
+            " separo il summary "
+            if 'summary' in l_subscan.keys():
+                self.m_summary= l_subscan
+                self.m_logger.info("summary.fits excluded from on off cal")
+                continue
+            " raggruppo le scan non summary.fits "                
             for l_chx in l_subscan:
                 if 'ch_' not in l_chx:                                     
                     continue
@@ -323,7 +331,7 @@ class Fitslike_handler():
         """         
         for ch in self.m_group_on_off_cal.keys():
             l_group= self.m_group_on_off_cal[ch]        
-            l_calMarkTemp= l_group['on'][0]['frontend']['cal_mark_temp']             
+            l_calMarkTemp= l_group['on'][0]['frontend']['cal_mark_temp']                         
             l_offAvg= sum(v['integrated_data']['spectrum'] for v in l_group['off']) / len(l_group['off'])            
             if len(l_group['cal_on']):
                 l_calOnAvg= sum(v['integrated_data']['spectrum'] for v in l_group['cal_on']) / len(l_group['cal_on'])
@@ -339,6 +347,7 @@ class Fitslike_handler():
                 on_off= (on - l_offAvg)/l_offAvg
                 l_group['on_off'].append(on_off)
                         
+            #pdb.set_trace()
             cal = np.array([l_calOnAvg, l_calOffAvg])
             good = (cal != 0) & ~np.isnan(cal) & ~np.isinf(cal)
             cal = cal[good]
@@ -389,30 +398,91 @@ class Fitslike_handler():
         spettri separati per polarizzazione e per feed
         un file per ogni uno
         """
-        " data in group on off cal sono divisi per  "        
+        " data in group on off cal sono divisi per  "
         " chx "
         "   on off cal "
         "       [chx...]"
+        " @todo inserire il campo cal is on ? quindi diversificare on ed off ?"        
         for l_ch in self.m_group_on_off_cal:              
+            " single entry on classfits table"
             for l_ch in self.m_group_on_off_cal[l_ch]['on']:
+                l_ch['classfits']={}
                 " ch by ch "                                
                 try:
-                    " ut "                                        
-                    l_tMjd= [t.mjd for t in l_ch['coordinates']['time_mjd']]
-                    l_ch['coordinates']['ut']= ( l_tMjd - np.floor(l_tMjd)) * 86400
+                    " Lavoro con  i dati integrati "
+                    " ut "                                   
+                    pdb.set_trace()
+                    l_tMjd= l_ch['integrated_data']['data_mjd']
+                    l_ch['classfits']['UT']= ( l_tMjd - np.floor(l_tMjd)) * 86400
                     " date "                    
-                    l_ch['coordinates']['date']= [t.strftime('%d/%m/%y') for t \
-                                              in  l_ch['coordinates']['time_mjd']]
+                    l_ch['classfits']['DATE']= [t.strftime('%d/%m/%y') for t \
+                                              in  l_tMjd]
                     " lsts "
                     l_lsts= [t.sidereal_time('apparent', \
                               fitslike_commons.Fitslike_commons.\
                                   get_site_location(l_ch['scheduled']['antenna']).lon) \
-                              for t in l_ch['coordinates']['time_mjd']]   
+                              for t in l_tMjd]   
                     l_lsts= [t.value * unit.hr for t in l_lsts]                                     
-                    l_ch['coordinates']['lsts'] = [t.to('s').value for t in l_lsts]
+                    " infos "                    
+                    l_ch['classfits']['OBJECT']= l_ch['scheduled']['source']
+                    l_ch['classfits']['LINE']= "F{}-{:3.3f}-MHz"\
+                        .format(l_ch['frontend']['feed'], l_ch['backend']['bandwith'])
+                    l_ch['classfits']['TELESCOP']= self.m_commons.class_telescope_name(l_ch)
+                    " temp "
+                    l_ch['classfits']['TSYS']= 1.0
+                    l_ch['classfits']['CALTEMP']= l_ch['frontend']['cal_mark_temp']
+                    " time "
+                    l_ch['classfits']['LSTS'] = [t.to('s').value for t in l_lsts]    
+                    l_ch['classfits']['OBSTIME']= l_ch['integrated_data']['data_integration']
+                    "  "
+                    l_ch['classfits']['CRDELT1']= (l_ch['frontend']['bandwith'] / 
+                                                l_ch['frontend']['channels']).to('Hz')                    
+                    " freq and velocity "
+                    l_ch['classfits']['RESTFREQ']= self.m_summary['restfreq']
+                    l_ch['classfits']['VELOCITY']= l_ch['scheduled']['vlsr']
+                    l_df= (l_ch['backend']['bandwith'] / l_ch['backend']['bins']).to('Hz')
+                    l_ch['classfits']['CDELT1']= l_df
+                    l_deltav= - l_df/ l_ch['classfits']['RESTFREQ'] * const.c
+                    l_ch['classfits']['DELTAV']= l_deltav.to('m/s').value
+                    " Objects Coordinates "                    
+                    l_ch['classfits']['CRDELT2'] = l_ch['scheduled']['ra_offset'].to(unit.deg).value
+                    l_ch['classfits']['CRDELT3'] = l_ch['scheduled']['dec_offset'].to(unit.deg).value
+                    l_ch['classfits']['AZIMUTH']= l_ch['integrated_data']['data_az']
+                    l_ch['classfits']['ELEVATION']= l_ch['integrated_data']['data_el']
+                    l_ch['classfits']['CRVAL2']= l_ch['integrated_data']['data_ra']
+                    l_ch['classfits']['CRVAL3']= l_ch['integrated_data']['data_dec']
+                    " data "                    
+                    l_ch['classfits']['MAXIS1'] = l_ch['integrated_data']['integration_time'] * \
+                                                    len(l_ch['coordinates']['time_mjd'])                    
+                    l_ch['classfits']['MAXIS1'] = l_ch['backend']['bins']
+                    l_ch['classfits']['spectrum']= l_ch['integrated_data']['data']
                 except:
                     pdb.set_trace()
-                    
+                " verifica campi ed unità"                
+                pdb.set_trace()
             
+        def ClassfitsWrite(self):
+            """
+            Scrittura file con calcolo header
+            header prende i dati dai dati generici ricavati dalla scansione scansione 
+            """
+            " creazione tabella "
+            l_hdData= self.m_obs_general_data
+            " header "
+            l_hdu= fits.PrimaryHDU() 
+            l_hdu.header['CTYPE1']= "FREQ"
+            l_hdu.header['CRVAL1']= 0
+            l_hdu.header['CRVAL2']= l_hdData['ra']
+            l_hdu.header['CRVAL3']= l_hdData['dec']                        
+            l_hdu.header['OBJECT'] = l_hdData['SOURCE']
+            l_hdu.header['SOURCE'] = l_hdData['SOURCE']
+            l_hdu.header['DATE-RED'] = Time.now().to_datetime().strftime('%d/%m/%y')
+            l_hdu.header['LINE'] = l_hdData['LINE']
+            l_hdu.header['CDELT1'] = l_hdData['CDELT1']
+            l_hdu.header['RESTFREQ'] = l_hdData['RESTFREQ']
+            l_hdu.header['MAXIS1'] = l_hdData['MAXIS1']
+            " data "
+            " @todo verificare "                    
+                
                 
   
