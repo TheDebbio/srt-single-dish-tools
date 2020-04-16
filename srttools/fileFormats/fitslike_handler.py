@@ -404,9 +404,17 @@ class Fitslike_handler():
         "       [chx...]"
         " @todo inserire il campo cal is on ? quindi diversificare on ed off ?"      
         " @todo gestire i dati in caso di campo singolo spettro mediato o serie di spettri"
-        for l_ch in self.m_group_on_off_cal:              
+        for l_chx in self.m_group_on_off_cal:              
             " single entry on classfits table"
-            for l_ch in self.m_group_on_off_cal[l_ch]['on']:
+            for l_ch in self.m_group_on_off_cal[l_chx]['on']:                
+                " Generic observation data copy to dedicated dict, more copies "
+                " below during calculations "
+                self.m_obs_general_data={}                
+                self.m_obs_general_data['ra']= l_ch['scheduled']['ra']
+                self.m_obs_general_data['dec']= l_ch['scheduled']['dec']
+                self.m_obs_general_data['source']= l_ch['scheduled']['source']
+                self.m_obs_general_data['date-red']= Time.now().to_datetime().strftime('%d/%m/%y')
+                " classfits new dict filling process "
                 l_ch['classfits']={}
                 " ch by ch "                                
                 try:
@@ -426,22 +434,26 @@ class Fitslike_handler():
                     l_ch['classfits']['OBJECT']= l_ch['scheduled']['source']
                     l_ch['classfits']['LINE']= "F{}-{:3.3f}-MHz"\
                         .format(l_ch['frontend']['feed'], l_ch['backend']['bandwith'])
+                    self.m_obs_general_data['line']= l_ch['classfits']['LINE']
                     l_ch['classfits']['TELESCOP']= self.m_commons.class_telescope_name(l_ch)
                     " temp "
                     l_ch['classfits']['TSYS']= 1.0
                     l_ch['classfits']['CALTEMP']= l_ch['frontend']['cal_mark_temp']
                     " time "
-                    l_ch['classfits']['LSTS'] = l_lsts.to('s').value     
+                    l_ch['classfits']['LST'] = l_lsts.to('s').value     
                     l_ch['classfits']['OBSTIME']= l_ch['integrated_data']['data_integration']
                     "  "                    
                     l_ch['classfits']['CDELT1']= (l_ch['frontend']['bandwidth'] / 
                                                 l_ch['backend']['bins']).to('Hz')                    
                     " freq and velocity "                    
                     l_ch['classfits']['RESTFREQ']= self.m_summary['summary']['restfreq']
-                    l_ch['classfits']['VELOCITY']= l_ch['scheduled']['vlsr']                    
+                    self.m_obs_general_data['restfreq']= l_ch['classfits']['RESTFREQ']
+                    l_ch['classfits']['restfreq']= l_ch['classfits']['RESTFREQ']
+                    l_ch['classfits']['VELOCITY']= l_ch['scheduled']['vlsr']
                     l_df= (l_ch['frontend']['bandwidth'] / l_ch['backend']['bins']).to('Hz')
                     l_ch['classfits']['CDELT1']= l_df
-                    l_deltav= - l_df/ l_ch['classfits']['RESTFREQ'] * const.c
+                    self.m_obs_general_data['cdelt1']= l_df
+                    l_deltav= - l_df/ l_ch['classfits']['RESTFREQ'] * const.c                    
                     l_ch['classfits']['DELTAV']= l_deltav.to('m/s').value
                     " Objects Coordinates "                    
                     l_ch['classfits']['CDELT2'] = l_ch['scheduled']['ra_offset'].to(unit.deg).value
@@ -450,35 +462,64 @@ class Fitslike_handler():
                     l_ch['classfits']['ELEVATION']= l_ch['integrated_data']['data_el']
                     l_ch['classfits']['CRVAL2']= l_ch['integrated_data']['data_ra']
                     l_ch['classfits']['CRVAL3']= l_ch['integrated_data']['data_dec']
-                    " data "                                        
-                    l_ch['classfits']['MAXIS1'] = l_ch['integrated_data']['data_integration']    
+                    " data "
+                    l_ch['classfits']['OBSTIME'] = l_ch['integrated_data']['data_integration']    
                     l_ch['classfits']['MAXIS1'] = l_ch['backend']['bins']
-                    l_ch['classfits']['spectrum']= l_ch['integrated_data']['spectrum']
+                    self.m_obs_general_data['maxis1']= l_ch['classfits']['MAXIS1']
+                    l_ch['classfits']['SPECTRUM']= l_ch['integrated_data']['spectrum']
+                    l_ch['classfits']['CRPIX1']=  l_ch['backend']['bins'] // 2 + 1
                 except:
-                    pdb.set_trace()                    
+                    pdb.set_trace()
             
         def ClassfitsWrite(self):
             """
             Scrittura file con calcolo header
-            header prende i dati dai dati generici ricavati dalla scansione scansione 
+            header prende i dati dai dati generici ricavati dalla scansione scansione             
             """
-            " creazione tabella "
-            l_hdData= self.m_obs_general_data
-            " header "
-            l_hdu= fits.PrimaryHDU() 
-            l_hdu.header['CTYPE1']= "FREQ"
-            l_hdu.header['CRVAL1']= 0
-            l_hdu.header['CRVAL2']= l_hdData['ra']
-            l_hdu.header['CRVAL3']= l_hdData['dec']                        
-            l_hdu.header['OBJECT'] = l_hdData['SOURCE']
-            l_hdu.header['SOURCE'] = l_hdData['SOURCE']
-            l_hdu.header['DATE-RED'] = Time.now().to_datetime().strftime('%d/%m/%y')
-            l_hdu.header['LINE'] = l_hdData['LINE']
-            l_hdu.header['CDELT1'] = l_hdData['CDELT1']
-            l_hdu.header['RESTFREQ'] = l_hdData['RESTFREQ']
-            l_hdu.header['MAXIS1'] = l_hdData['MAXIS1']
-            " data "
-            " @todo verificare "                    
+            """
+            newcol = fits.Column(array=all_spectrums, name="SPECTRUM",
+                                     unit="K",
+                                     format="D")
+                                     #format="{}D".format(channels[0]))
+            """
+            " astropy fits work per column, i have transpose all data while "
+            " generating new fits cols ( input data are per row basis"
+                        
+            l_newCols=[]
+            for l_chx in self.m_group_on_off_cal:                          
+                l_colData=[]            
+                for classCol in self.m_commons.getClassfitsColumnsZip():
+                    " [ name, form, unit ] column by column data building "                
+                    " single entry on classfits table"                    
+                    for l_ch in self.m_group_on_off_cal[l_chx]['on']:
+                        if classCol[0] in l_ch['classfits'].keys():
+                            l_colData.append(l_ch['classfits'][classCol[0]])
+                        " col creation "
+                        l_newCols.append(fits.Column(name= classCol[0], format= classCol[1],\
+                                            unit= classCol[2], array= l_colData) )
+                " @todo manca spectrum col (penso dipenda da stokes per la dimensione "
+                    
+                l_hdData= self.m_obs_general_data
+                " header "
+                l_hdu= fits.PrimaryHDU() 
+                l_hdu.header['CTYPE1']= "FREQ"
+                l_hdu.header['CRVAL1']= 0
+                l_hdu.header['CRVAL2']= l_hdData['ra']
+                l_hdu.header['CRVAL3']= l_hdData['dec']                        
+                l_hdu.header['OBJECT'] = l_hdData['source']
+                l_hdu.header['SOURCE'] = l_hdData['source']
+                l_hdu.header['DATE-RED'] = l_hdData['date-red']
+                l_hdu.header['LINE'] = l_hdData['line']
+                l_hdu.header['CDELT1'] = l_hdData['cdelt1']
+                l_hdu.header['RESTFREQ'] = l_hdData['restfreq']
+                l_hdu.header['MAXIS1'] = l_hdData['maxis1']
+                " data "
+                l_cdefs= fits.ColDefs(l_newCols)
+                l_hdu= fits.BinTableHDU().from_columns(l_cdefs)            
+                l_hdu.writeto("feed_{}_cal".format(l_chx))
+                " @todo verificare "
+            
+            
                 
                 
   

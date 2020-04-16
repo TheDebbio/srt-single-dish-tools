@@ -4,6 +4,7 @@
 
 from astropy.coordinates import EarthLocation, AltAz, Angle, ICRS
 import astropy.units as unit
+from astropy.io import fits
 import numpy as np
 import re
 
@@ -198,3 +199,153 @@ class Fitslike_commons():
         e0 = np.exp(1.81 + 17.27 * DPT / (DPT + 237.5))
         ZWDS = 0.002277 * (0.005 + 1255 / p_tmp) * e0    
         return ZWDS * C * 100.
+    
+    
+    @staticmethod
+    def getClassfitsColumnsZip():
+        " returns name, format, unit for every classfits entry"    
+        LIST_TTYPE = \
+            ["MJD",
+             "MAXIS1", "SCAN", "TELESCOP", "TSYS",
+             "IMAGFREQ", "DELTAV", "TAU-ATM", "MH2O",
+             "TOUTSIDE", "PRESSURE", "CRVAL2", "CRVAL3",
+             "ELEVATIO", "AZIMUTH", "DATE-OBS", "UT",
+             "LST", "OBSTIME", "CRPIX1", "RESTFREQ",
+             "OBJECT", "VELOCITY", "CDELT1", "CDELT2",
+             "CDELT3", "LINE", "SIGNAL", "CAL_IS_ON",
+             "CALTEMP"]
+        
+        LIST_TFORM = \
+            ["1D",
+             "1J", "1J", "12A", "1E",
+             "1E", "1E", "1E", "1E",
+             "1E", "1E", "1E", "1E",
+             "1E", "1E", "23A ", "1D",
+             "1D", "1E", "1E", "1D",
+             "12A", "1E", "1E", "1D",
+             "1D", "12A", "1J", "1J",
+             "1D"]
+        
+        LIST_TUNIT = \
+            ["d",
+             " ", "", "", "K",
+             "Hz", "m.s-1", "neper", "mm",
+             "K", "hPa", "deg", "deg",
+             "deg", "deg", "", "s",
+             "s", "s", "", "Hz",
+             "", "m.s-1", "Hz", "deg",
+             "deg", "",  "", "", "K"]
+            
+        return list(zip(LIST_TTYPE, LIST_TFORM, LIST_TUNIT))      
+    
+    @staticmethod
+    def classfitsColumnsModel(additional_columns=None, **kwargs):
+        """classfits structure model"""
+        
+        model_primary_header = """
+        SIMPLE  =                    T
+        BITPIX  =                    8
+        NAXIS   =                    0
+        EXTEND  =                    T
+        BLOCKED =                    T
+        ORIGIN  = 'SRT'
+        CREATOR = '      '
+        END
+        """
+
+        model_header = """
+        XTENSION= 'BINTABLE'
+        BITPIX  =                    8         / Always 8.
+        NAXIS   =                    2         / Always 2: tables have 2 dimensions.
+        NAXIS1  =                 7275         / Number of bytes per row.
+        NAXIS2  =                    4         / Number of rows.
+        PCOUNT  =                    0         / Usually 0.
+        GCOUNT  =                    1         / Always 1.
+        TFIELDS =                   18         / Number of columns.
+        EXTNAME = 'MATRIX  '                   / Just a name, not important.
+        EXTVER  =                    1         / Always 1.
+        MAXIS   =                    4         / Number of dimensions in the data.
+        MAXIS1  =                 1793         / Dummy number of channels (see TTYPE1).
+        MAXIS2  =                    1         /
+        MAXIS3  =                    1         /
+        MAXIS4  =                    1         /
+        CTYPE1  = 'FREQ    '                   / Dim1: freq => MAXIS1 = Nb channels.
+        CRVAL1  =  0.0000000000000E+00         / Frequency offset, always 0.
+        CDELT1  =  0.0000000000000E+00         / Frequency resolution [Hz].
+        CRPIX1  =  0.0000000000000E+00         / Dummy reference channel (see TTYPE18).
+        CTYPE2  = 'RA      '
+        CRVAL2  =  0.0000000000000E+00
+        CDELT2  =  0.0000000000000E+00
+        CRPIX2  =  0.0000000000000E+00
+        CTYPE3  = 'DEC     '
+        CRVAL3  =  0.0000000000000E+00
+        CDELT3  =  0.0000000000000E+00
+        CRPIX3  =  0.0000000000000E+00
+        CTYPE4  = 'STOKES  '
+        CRVAL4  =  0.0000000000000E+00
+        CDELT4  =  0.0000000000000E+00
+        CRPIX4  =  0.0000000000000E+00
+        SUBSCAN =                    1         / Subscan number.  Often 1.
+        LINE    = '            '               / Name of your line, up to 12 chars.
+        OBJECT  = '            '               / Name of your source, up to 12 chars.
+        RESTFREQ=  0.0000000000000E+00         / Rest (signal) frequency at ref chan.
+        VELO-HEL=  0.0000000000000E+00         / Velocity at ref.  chan [m.s-1].
+        VELDEF  = 'RADI-LSR'                   / Type of velocity.
+        GAINIMAG=  0.0000000000000E+00         / Ratio Image/Signal.
+        BEAMEFF =  0.0000000000000E+00         / Beam efficiency.
+        FORWEFF =  0.0000000000000E+00         / Forward efficiency.
+        EPOCH   =  2.0000000000000E+03         / Epoch of coordinates.
+        DATE-RED= '15/07/97'                   / Date of reduction.
+        """
+        
+        LIST_TTYPE = \
+            ["MJD",
+             "MAXIS1", "SCAN", "TELESCOP", "TSYS",
+             "IMAGFREQ", "DELTAV", "TAU-ATM", "MH2O",
+             "TOUTSIDE", "PRESSURE", "CRVAL2", "CRVAL3",
+             "ELEVATIO", "AZIMUTH", "DATE-OBS", "UT",
+             "LST", "OBSTIME", "CRPIX1", "RESTFREQ",
+             "OBJECT", "VELOCITY", "CDELT1", "CDELT2",
+             "CDELT3", "LINE", "SIGNAL", "CAL_IS_ON",
+             "CALTEMP"]
+        
+        LIST_TFORM = \
+            ["1D",
+             "1J", "1J", "12A", "1E",
+             "1E", "1E", "1E", "1E",
+             "1E", "1E", "1E", "1E",
+             "1E", "1E", "23A ", "1D",
+             "1D", "1E", "1E", "1D",
+             "12A", "1E", "1E", "1D",
+             "1D", "12A", "1J", "1J",
+             "1D"]
+        
+        LIST_TUNIT = \
+            ["d",
+             " ", "", "", "K",
+             "Hz", "m.s-1", "neper", "mm",
+             "K", "hPa", "deg", "deg",
+             "deg", "deg", "", "s",
+             "s", "s", "", "Hz",
+             "", "m.s-1", "Hz", "deg",
+             "deg", "",  "", "", "K"]
+                         
+        cols = []
+        list_ttype = LIST_TTYPE
+        list_tform = LIST_TFORM
+        list_tunit = LIST_TUNIT
+    
+        for ttype, tform, tunit in zip(list_ttype, list_tform, list_tunit):
+            newcol = fits.Column(name=ttype, format=tform, unit=tunit)
+            cols.append(newcol)
+        coldefs = fits.ColDefs(cols)
+        if additional_columns is not None:
+            coldefs += fits.ColDefs(additional_columns)
+    
+        hdu = fits.BinTableHDU.from_columns(
+            coldefs, header=fits.Header.fromstring(model_header, sep='\n'),
+            name='MATRIX', **kwargs)
+    
+        primary_hdu = fits.PrimaryHDU(
+            header=fits.Header.fromstring(model_primary_header, sep='\n'))
+        return fits.HDUList([primary_hdu, hdu])
