@@ -172,11 +172,10 @@ class Fitslike_commons():
         Generazione strigna telescope classfits
         @todo da definire..tradurre con le funziona sopra
         """
-        return '{}-{}-{}-{}'.format(
-                        p_scan['scheduled']['site'],
-                        p_scan['frontend']['receiver'],
-                        p_scan['frontend'],
-                        p_scan['frontend']['polarization']
+        return '{}-{}-{}'.format(
+                        p_scan['scheduled']['antenna'],
+                        p_scan['frontend']['feed'],                        
+                        p_scan['frontend']['polarizations']
                         )
 
     @staticmethod

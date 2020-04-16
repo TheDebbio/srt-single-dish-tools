@@ -402,7 +402,8 @@ class Fitslike_handler():
         " chx "
         "   on off cal "
         "       [chx...]"
-        " @todo inserire il campo cal is on ? quindi diversificare on ed off ?"        
+        " @todo inserire il campo cal is on ? quindi diversificare on ed off ?"      
+        " @todo gestire i dati in caso di campo singolo spettro mediato o serie di spettri"
         for l_ch in self.m_group_on_off_cal:              
             " single entry on classfits table"
             for l_ch in self.m_group_on_off_cal[l_ch]['on']:
@@ -410,19 +411,17 @@ class Fitslike_handler():
                 " ch by ch "                                
                 try:
                     " Lavoro con  i dati integrati "
-                    " ut "                                   
-                    pdb.set_trace()
-                    l_tMjd= l_ch['integrated_data']['data_mjd']
+                    " ut "                                                                           
+                    l_tMjd= l_ch['integrated_data']['data_mjd'].mjd
                     l_ch['classfits']['UT']= ( l_tMjd - np.floor(l_tMjd)) * 86400
                     " date "                    
-                    l_ch['classfits']['DATE']= [t.strftime('%d/%m/%y') for t \
-                                              in  l_tMjd]
+                    
+                    l_ch['classfits']['DATE']= l_ch['integrated_data']['data_mjd'].strftime('%d/%m/%y') 
                     " lsts "
-                    l_lsts= [t.sidereal_time('apparent', \
+                    l_lsts= l_ch['integrated_data']['data_mjd'].sidereal_time('apparent', \
                               fitslike_commons.Fitslike_commons.\
-                                  get_site_location(l_ch['scheduled']['antenna']).lon) \
-                              for t in l_tMjd]   
-                    l_lsts= [t.value * unit.hr for t in l_lsts]                                     
+                                  get_site_location(l_ch['scheduled']['antenna']).lon)
+                    l_lsts= l_lsts.value * unit.hr                                     
                     " infos "                    
                     l_ch['classfits']['OBJECT']= l_ch['scheduled']['source']
                     l_ch['classfits']['LINE']= "F{}-{:3.3f}-MHz"\
@@ -432,34 +431,31 @@ class Fitslike_handler():
                     l_ch['classfits']['TSYS']= 1.0
                     l_ch['classfits']['CALTEMP']= l_ch['frontend']['cal_mark_temp']
                     " time "
-                    l_ch['classfits']['LSTS'] = [t.to('s').value for t in l_lsts]    
+                    l_ch['classfits']['LSTS'] = l_lsts.to('s').value     
                     l_ch['classfits']['OBSTIME']= l_ch['integrated_data']['data_integration']
-                    "  "
-                    l_ch['classfits']['CRDELT1']= (l_ch['frontend']['bandwith'] / 
-                                                l_ch['frontend']['channels']).to('Hz')                    
-                    " freq and velocity "
-                    l_ch['classfits']['RESTFREQ']= self.m_summary['restfreq']
-                    l_ch['classfits']['VELOCITY']= l_ch['scheduled']['vlsr']
-                    l_df= (l_ch['backend']['bandwith'] / l_ch['backend']['bins']).to('Hz')
+                    "  "                    
+                    l_ch['classfits']['CDELT1']= (l_ch['frontend']['bandwidth'] / 
+                                                l_ch['backend']['bins']).to('Hz')                    
+                    " freq and velocity "                    
+                    l_ch['classfits']['RESTFREQ']= self.m_summary['summary']['restfreq']
+                    l_ch['classfits']['VELOCITY']= l_ch['scheduled']['vlsr']                    
+                    l_df= (l_ch['frontend']['bandwidth'] / l_ch['backend']['bins']).to('Hz')
                     l_ch['classfits']['CDELT1']= l_df
                     l_deltav= - l_df/ l_ch['classfits']['RESTFREQ'] * const.c
                     l_ch['classfits']['DELTAV']= l_deltav.to('m/s').value
                     " Objects Coordinates "                    
-                    l_ch['classfits']['CRDELT2'] = l_ch['scheduled']['ra_offset'].to(unit.deg).value
-                    l_ch['classfits']['CRDELT3'] = l_ch['scheduled']['dec_offset'].to(unit.deg).value
+                    l_ch['classfits']['CDELT2'] = l_ch['scheduled']['ra_offset'].to(unit.deg).value
+                    l_ch['classfits']['CDELT3'] = l_ch['scheduled']['dec_offset'].to(unit.deg).value
                     l_ch['classfits']['AZIMUTH']= l_ch['integrated_data']['data_az']
                     l_ch['classfits']['ELEVATION']= l_ch['integrated_data']['data_el']
                     l_ch['classfits']['CRVAL2']= l_ch['integrated_data']['data_ra']
                     l_ch['classfits']['CRVAL3']= l_ch['integrated_data']['data_dec']
-                    " data "                    
-                    l_ch['classfits']['MAXIS1'] = l_ch['integrated_data']['integration_time'] * \
-                                                    len(l_ch['coordinates']['time_mjd'])                    
+                    " data "                                        
+                    l_ch['classfits']['MAXIS1'] = l_ch['integrated_data']['data_integration']    
                     l_ch['classfits']['MAXIS1'] = l_ch['backend']['bins']
-                    l_ch['classfits']['spectrum']= l_ch['integrated_data']['data']
+                    l_ch['classfits']['spectrum']= l_ch['integrated_data']['spectrum']
                 except:
-                    pdb.set_trace()
-                " verifica campi ed unità"                
-                pdb.set_trace()
+                    pdb.set_trace()                    
             
         def ClassfitsWrite(self):
             """

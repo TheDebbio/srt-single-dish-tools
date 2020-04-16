@@ -171,7 +171,7 @@ class Awarness_fitszilla():
         self.m_intermediate['obs_el_offset'] = \
             self.m_intermediate['obs_el_offset']*unit.rad
         self.m_intermediate['file_name']= self.m_fileName
-        self.m_intermediate['obs_vlsr'] =  unit.Unit("m/s")
+        self.m_intermediate['obs_vlsr'] *=  unit.Unit("m/s")
         "todo : trasportare le coordinate  per ogni feed?"        
         l_scheduled= {}
         try:
@@ -187,7 +187,7 @@ class Awarness_fitszilla():
             l_scheduled['signal']= self.m_intermediate['obs_signal']
             l_scheduled['scan_type']= self.m_intermediate['obs_scantype']
             l_scheduled['file_name']= self.m_intermediate['file_name']            
-            l_scheduled['vlsr']= self.m_intermediate['vlsr']
+            l_scheduled['vlsr']= self.m_intermediate['obs_vlsr']
         except KeyError as e:
             self.m_logger.error("Key exception : " + str(e))
         self.m_scheduled= l_scheduled.copy()        
