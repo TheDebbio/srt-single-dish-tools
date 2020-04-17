@@ -16,6 +16,7 @@ import fitslike_handler
 #nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/20181210-232201-24-18-W3OH_small/'
 #nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/very_small/'
 nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/20181210-232201-24-18-W3OH/'
+output_path= '/home/debbio/discos/Scan/SARDARA_Nodding/debbio-20181210-232201-24-18-W3OH/'
 nodding_zilla_1_8 = '20181210-232307-24-18-W3OH_001_008.fits'
 
 class TestFitslike_handler():
@@ -23,13 +24,15 @@ class TestFitslike_handler():
     @staticmethod
     def test_scan():
         """Scan input file test"""
-        l_fh= fitslike_handler.Fitslike_handler('fitszilla', 'nod')
+        l_fh= fitslike_handler.Fitslike_handler('fitszilla', 'nod')        
+        l_fh.setOutputPath(output_path)
         l_fh.scan_data(nodding_dir)
         l_fh.group_on_off_cal()
         l_fh.normalize()
         l_fh.ClassFitsAdaptations()
+        l_fh.classfitsWrite()
         #l_fh._on_off_match()
-        pdb.set_trace()
+        #pdb.set_trace()
         
 if __name__ == "__main__":
     l_commons = fitslike_commons.Fitslike_commons()    
