@@ -309,8 +309,12 @@ class Awarness_fitszilla():
             l_innerDict['spectrum']['data']= np.asarray(
                 self.m_intermediate['ch'+str(l_elBe)]
                 )
-            l_innerDict['spectrum']['flag_cal']= np.asarray(self.m_intermediate['data_flag_cal'])
-            self.m_processedRepr['ch_'+str(l_elBe)] = l_innerDict.copy()
+            l_innerDict['spectrum']['flag_cal']= np.asarray(self.m_intermediate['data_flag_cal'])                    
+            l_feed= l_innerDict['frontend']['feed']
+            " Grouping by feed: ch_x"
+            if l_feed not in self.m_processedRepr.keys():
+                self.m_processedRepr[l_feed]={}                
+            self.m_processedRepr[l_feed]['ch_'+str(l_elBe)] = l_innerDict.copy()            
                         
     def _process_coordinates(self):
         """
@@ -540,22 +544,24 @@ class Awarness_fitszilla():
                                            l_location)  
                 
             # coordinates dict storage
-            for l_proc in self.m_processedRepr.keys():
-                l_chx = self.m_processedRepr[l_proc]
-                if l_chx['frontend']['feed'] == l_feed:
-                    l_chx['coordinates']= l_feedCoord.copy()
+            for feed in self.m_processedRepr.keys():
+                for chx in self.m_processedRepr[feed]:
+                    l_chx = self.m_processedRepr[feed][chx]
+                    if l_chx['frontend']['feed'] == l_feed:
+                        l_chx['coordinates']= l_feedCoord.copy()
         
     def _process_extras(self):
         """
         Extra data processing
         Filling not present keywords    
         """                        
-        for l_proc in self.m_processedRepr.keys():            
-            l_chx = self.m_processedRepr[l_proc]
-            l_chx['extras']= {}         
-            " weather "
-            l_weather= self.m_intermediate['ex_weather']
-            l_chx['extras']['weather']= self.m_commons.calculate_weather(l_weather[1] + 273.15, l_weather[0])
+        for feed in self.m_processedRepr.keys():            
+            for chx in self.m_processedRepr[feed]:
+                l_chx = self.m_processedRepr[feed][chx]
+                l_chx['extras']= {}         
+                " weather "
+                l_weather= self.m_intermediate['ex_weather']
+                l_chx['extras']['weather']= self.m_commons.calculate_weather(l_weather[1] + 273.15, l_weather[0])
             
                 
             

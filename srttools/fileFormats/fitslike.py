@@ -98,36 +98,37 @@ class Fitslike():
         "todo diversificare spettri da stokes"
         l_processedDictKeys = ["data_time", "data_mjd", "data_ra", "data_dec",
                                "data_az", "data_el", "spectrum", "data_integration"]         
-        for l_ch in self.m_inputRepr.keys():                              
-            l_chx= self.m_inputRepr[l_ch]               
-            try:
-                l_coord_time= l_chx['coordinates']['data_time']
-                l_coord_time_mjd= l_chx['coordinates']['time_mjd']
-                l_coord_ra= l_chx['coordinates']['data_ra']
-                l_coord_dec= l_chx['coordinates']['data_dec']
-                l_coord_az= l_chx['coordinates']['data_az']
-                l_coord_el= l_chx['coordinates']['data_el']                
-                l_spectrum= l_chx['spectrum']['data']
-                l_integration= len(l_chx['coordinates']['data_time'])
-            except KeyError as e:
-                self.m_logger.error("key not found :" + e.args[0])
-                return {}
-            l_coord_time= np.mean(l_coord_time, axis= 0)
-            l_coord_time_mjd= l_coord_time_mjd[0]
-            l_coord_ra= np.mean(l_coord_ra, axis= 0)
-            l_coord_dec= np.mean(l_coord_dec, axis= 0)
-            l_coord_az= np.mean(l_coord_az, axis= 0)
-            l_coord_el= np.mean(l_coord_el, axis= 0)            
-            l_spectrum= np.mean(l_spectrum, axis= 0)
-            l_integration *= l_chx['backend']['integration_time']
-            l_intDataList= [l_coord_time, l_coord_time_mjd, l_coord_ra, l_coord_dec,
-                            l_coord_az, l_coord_el, l_spectrum, l_integration]
-            l_intDataDict= dict(zip(l_processedDictKeys,l_intDataList))            
-            self.m_processedRepr[l_ch]= {}
-            self.m_processedRepr[l_ch]['integrated_data']= \
-                l_intDataDict.copy()
-            self.m_inputRepr[l_ch]['integrated_data']= \
-                l_intDataDict.copy()                  
+        for l_feed in self.m_inputRepr.keys(): 
+            for l_ch in self.m_inputRepr[l_feed].keys():                              
+                l_chx= self.m_inputRepr[l_feed][l_ch]               
+                try:
+                    l_coord_time= l_chx['coordinates']['data_time']
+                    l_coord_time_mjd= l_chx['coordinates']['time_mjd']
+                    l_coord_ra= l_chx['coordinates']['data_ra']
+                    l_coord_dec= l_chx['coordinates']['data_dec']
+                    l_coord_az= l_chx['coordinates']['data_az']
+                    l_coord_el= l_chx['coordinates']['data_el']                
+                    l_spectrum= l_chx['spectrum']['data']
+                    l_integration= len(l_chx['coordinates']['data_time'])
+                except KeyError as e:
+                    self.m_logger.error("key not found :" + e.args[0])
+                    return {}
+                l_coord_time= np.mean(l_coord_time, axis= 0)
+                l_coord_time_mjd= l_coord_time_mjd[0]
+                l_coord_ra= np.mean(l_coord_ra, axis= 0)
+                l_coord_dec= np.mean(l_coord_dec, axis= 0)
+                l_coord_az= np.mean(l_coord_az, axis= 0)
+                l_coord_el= np.mean(l_coord_el, axis= 0)            
+                l_spectrum= np.mean(l_spectrum, axis= 0)
+                l_integration *= l_chx['backend']['integration_time']
+                l_intDataList= [l_coord_time, l_coord_time_mjd, l_coord_ra, l_coord_dec,
+                                l_coord_az, l_coord_el, l_spectrum, l_integration]
+                l_intDataDict= dict(zip(l_processedDictKeys,l_intDataList))            
+                self.m_processedRepr[l_ch]= {}
+                self.m_processedRepr[l_ch]['integrated_data']= \
+                    l_intDataDict.copy()
+                self.m_inputRepr[l_feed][l_ch]['integrated_data']= \
+                    l_intDataDict.copy()
         return self.m_processedRepr
         
     def dump(self):

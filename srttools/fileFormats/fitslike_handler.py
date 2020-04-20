@@ -183,12 +183,14 @@ class Fitslike_handler():
             For every ch_x
             
         it means:
-            ch_x{
+            feed{
+             ch_x{
                 on:[]
                 off:[]
                 cal_on:[]
                 cal_off:[]
-            }
+                }
+             }
             
         g_on_off_cal_dict will store data groups per type
         Subscan collection parsing per feed
@@ -251,8 +253,8 @@ class Fitslike_handler():
                                 
         " ordino le subscan in base al file name "        
         self.m_subscans= sorted(self.m_subscans,\
-                                key= lambda item:('file_name' not in item, item.get('file_name', None)))        
-            
+                                key= lambda item:('file_name' not in item, item.get('file_name', None)))                
+                                        
         for l_subscan in self.m_subscans:     
             if 'file_name' in l_subscan:
                 self.m_logger.info(l_subscan['file_name'])
@@ -261,48 +263,53 @@ class Fitslike_handler():
                 self.m_summary= l_subscan
                 self.m_logger.info("summary.fits excluded from on off cal")
                 continue
-            " raggruppo le scan non summary.fits "                
-            for l_chx in l_subscan:
-                if 'ch_' not in l_chx:                                     
-                    continue
-                if self.m_scanType == 'on_off' or self.m_scanType == 'nod':
-                    """                    
-                    on_data = table[~cal_on & onsource]
-                    off_data = table[~cal_on & ~onsource]
-                    calon_data = table[cal_on & onsource]
-                    caloff_data = table[cal_on & ~onsource]
-                    """ 
-                    l_feed= l_subscan[l_chx]['frontend']['feed']                                                                      
-                    l_isCal= _is_cal(l_subscan[l_chx])
-                    l_isOn= _is_on(l_subscan[l_chx])                
-                    " list per feed  ch_x setup "
-                    l_onOffdict= {
-                        'on':[], 'off':[],'cal_on':[], 'cal_off':[]
-                        }
-                    try:
-                        if l_chx not in self.m_group_on_off_cal.keys():
-                            self.m_group_on_off_cal[l_chx]=l_onOffdict                            
-                    except KeyError as e :
-                        pdb.set_trace()
-                        self.m_logger.error("key error: " + str(e))
+            " raggruppo le scan non summary.fits "     
+            for l_feed in l_subscan:      
+                #pdb.set_trace()
+                for l_chx in l_subscan[l_feed]:
+                    if 'ch_' not in l_chx:                                     
                         continue
+                    if self.m_scanType == 'on_off' or self.m_scanType == 'nod':
+                        """                    
+                        on_data = table[~cal_on & onsource]
+                        off_data = table[~cal_on & ~onsource]
+                        calon_data = table[cal_on & onsource]
+                        caloff_data = table[cal_on & ~onsource]
+                        """ 
+                        l_feed= l_subscan[l_feed][l_chx]['frontend']['feed']                                                                      
+                        l_isCal= _is_cal(l_subscan[l_feed][l_chx])
+                        l_isOn= _is_on(l_subscan[l_feed][l_chx])                
+                        " list per feed ch_x setup "
+                        l_onOffdict= {
+                            'on':[], 'off':[],'cal_on':[], 'cal_off':[]
+                            }
+                        try:
+                            if l_feed not in self.m_group_on_off_cal.keys():
+                                self.m_group_on_off_cal[l_feed]={}
+                            if l_chx not in self.m_group_on_off_cal[l_feed].keys():
+                                self.m_group_on_off_cal[l_feed][l_chx]=l_onOffdict                            
+                        except KeyError as e:
+                            pdb.set_trace()
+                            self.m_logger.error("key error: " + str(e))
+                            continue
+                                                
+                        " Grouping feed sub scans on of cal on off"
+                        if l_isOn and not l_isCal:                            
+                            self.m_group_on_off_cal[l_feed][l_chx]['on'].append(l_subscan[l_feed][l_chx])           
+                            self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx + ' is on ')
+                        elif not l_isOn and not l_isCal:                        
+                            self.m_group_on_off_cal[l_feed][l_chx]['off'].append(l_subscan[l_feed][l_chx])
+                            self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx +  ' is off ')
+                        elif l_isOn and  l_isCal:
+                            self.m_group_on_off_cal[l_feed][l_chx]['cal_on'].append(l_subscan[l_feed][l_chx])
+                            self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx + ' is cal_on ')
+                        elif not l_isOn and  l_isCal:
+                            self.m_group_on_off_cal[l_feed][l_chx]['cal_off'].append(l_subscan[l_feed][l_chx])                                            
+                            self.m_logger.info('feed ' + str(l_feed)+ ' ' + l_chx + ' is cal off ')
+                    if self.m_scanType == 'map':
+                        " @todo on off in caso di mappe "
+                        pass
                     
-                    " Grouping feed sub scans on of cal on off"
-                    if l_isOn and not l_isCal:                            
-                        self.m_group_on_off_cal[l_chx]['on'].append(l_subscan[l_chx])           
-                        self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx + ' is on ')
-                    elif not l_isOn and not l_isCal:                        
-                        self.m_group_on_off_cal[l_chx]['off'].append(l_subscan[l_chx])
-                        self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx +  ' is off ')
-                    elif l_isOn and  l_isCal:
-                        self.m_group_on_off_cal[l_chx]['cal_on'].append(l_subscan[l_chx])
-                        self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx + ' is cal_on ')
-                    elif not l_isOn and  l_isCal:
-                        self.m_group_on_off_cal[l_chx]['cal_off'].append(l_subscan[l_chx])                                            
-                        self.m_logger.info('feed ' + str(l_feed)+ ' ' + l_chx + ' is cal off ')
-                if self.m_scanType == 'map':
-                    " @todo on off in caso di mappe "
-                    pass
     
     def normalize(self):
         """                
@@ -335,38 +342,39 @@ class Fitslike_handler():
             normalized= on * calibrationFactor
             
         """         
-        for ch in self.m_group_on_off_cal.keys():
-            l_group= self.m_group_on_off_cal[ch]        
-            l_calMarkTemp= l_group['on'][0]['frontend']['cal_mark_temp']                         
-            l_offAvg= sum(v['integrated_data']['spectrum'] for v in l_group['off']) / len(l_group['off'])            
-            if len(l_group['cal_on']):
-                l_calOnAvg= sum(v['integrated_data']['spectrum'] for v in l_group['cal_on']) / len(l_group['cal_on'])
-            if len(l_group['cal_off']):
-                l_calOffAvg= sum(v['integrated_data']['spectrum'] for v in l_group['cal_off']) / len(l_group['cal_off'])
-            
-            "calcolo"
-                        
-            l_group['on_off']=[]            
-            l_group['on_off_cal']=[]
-            for elOn in l_group['on']:
-                on= elOn['integrated_data']['spectrum']
-                on_off= (on - l_offAvg)/l_offAvg
-                l_group['on_off'].append(on_off)
-                        
-            #pdb.set_trace()
-            cal = np.array([l_calOnAvg, l_calOffAvg])
-            good = (cal != 0) & ~np.isnan(cal) & ~np.isinf(cal)
-            cal = cal[good]
-            if len(cal) > 0:
-                meancal = np.median(cal) if len(cal) > 30 else np.mean(cal)    
-                calibration_factor = 1 / meancal * l_calMarkTemp
-            else:   
-                return None, ""
-            " Calibrated spectrum added to chx"            
-            for elOn in l_group['on']:                
-                elOn['integrated_data']['calibrated'] = elOn['integrated_data']['spectrum'] * \
-                                    calibration_factor
+        for l_feed in self.m_group_on_off_cal.keys():
+            for ch in self.m_group_on_off_cal[l_feed].keys():
+                l_group= self.m_group_on_off_cal[l_feed][ch]        
+                l_calMarkTemp= l_group['on'][0]['frontend']['cal_mark_temp']                         
+                l_offAvg= sum(v['integrated_data']['spectrum'] for v in l_group['off']) / len(l_group['off'])            
+                if len(l_group['cal_on']):
+                    l_calOnAvg= sum(v['integrated_data']['spectrum'] for v in l_group['cal_on']) / len(l_group['cal_on'])
+                if len(l_group['cal_off']):
+                    l_calOffAvg= sum(v['integrated_data']['spectrum'] for v in l_group['cal_off']) / len(l_group['cal_off'])
                 
+                "calcolo"
+                            
+                l_group['on_off']=[]            
+                l_group['on_off_cal']=[]
+                for elOn in l_group['on']:
+                    on= elOn['integrated_data']['spectrum']
+                    on_off= (on - l_offAvg)/l_offAvg
+                    l_group['on_off'].append(on_off)
+                            
+                #pdb.set_trace()
+                cal = np.array([l_calOnAvg, l_calOffAvg])
+                good = (cal != 0) & ~np.isnan(cal) & ~np.isinf(cal)
+                cal = cal[good]
+                if len(cal) > 0:
+                    meancal = np.median(cal) if len(cal) > 30 else np.mean(cal)    
+                    calibration_factor = 1 / meancal * l_calMarkTemp
+                else:   
+                    return None, ""
+                " Calibrated spectrum added to chx"            
+                for elOn in l_group['on']:                
+                    elOn['integrated_data']['calibrated'] = elOn['integrated_data']['spectrum'] * \
+                                        calibration_factor
+                    
                 
     def _on_off_match(self):                  
         """
@@ -396,86 +404,88 @@ class Fitslike_handler():
     def ClassFitsAdaptations(self):
         """
         Generazione struttura dati secondo la definizione del classfist
+                
+        data in group on off cal sono divisi per
+        self.m_group_on_off_cal['ch_0']['on'][0].keys()
         
         info base
         
         coordinate comandate in az, el o ra, dec
         coordinate osservate in crdelt2,3
         spettri separati per polarizzazione e per feed
-        un file per ogni uno
+        un file per ogni uno        
         """
-        " data in group on off cal sono divisi per  "
-        " chx "
-        "   on off cal "
-        "       [chx...]"
+
         " @todo inserire il campo cal is on ? quindi diversificare on ed off ?"      
-        " @todo gestire i dati in caso di campo singolo spettro mediato o serie di spettri"
-        for l_chx in self.m_group_on_off_cal:              
-            " single entry on classfits table"
-            for l_ch in self.m_group_on_off_cal[l_chx]['on']:                
-                " Generic observation data copy to dedicated dict, more copies "
-                " below during calculations "
-                self.m_obs_general_data={}                
-                self.m_obs_general_data['ra']= l_ch['scheduled']['ra'].to(unit.deg).value
-                self.m_obs_general_data['dec']= l_ch['scheduled']['dec'].to(unit.deg).value
-                self.m_obs_general_data['source']= l_ch['scheduled']['source']
-                self.m_obs_general_data['date-red']= Time.now().to_datetime().strftime('%d/%m/%y')
-                " classfits new dict filling process "
-                l_ch['classfits']={}
-                " ch by ch "                                
-                try:
-                    " Lavoro con  i dati integrati "
-                    " ut "                                                                           
-                    l_tMjd= l_ch['integrated_data']['data_mjd'].mjd
-                    l_ch['classfits']['UT']= ( l_tMjd - np.floor(l_tMjd)) * 86400
-                    " date "                    
-                    
-                    l_ch['classfits']['DATE']= l_ch['integrated_data']['data_mjd'].strftime('%d/%m/%y') 
-                    " lsts "
-                    l_lsts= l_ch['integrated_data']['data_mjd'].sidereal_time('apparent', \
-                              fitslike_commons.Fitslike_commons.\
-                                  get_site_location(l_ch['scheduled']['antenna']).lon)
-                    l_lsts= l_lsts.value * unit.hr                                     
-                    " infos "                    
-                    l_ch['classfits']['OBJECT']= l_ch['scheduled']['source']
-                    l_ch['classfits']['LINE']= "F{}-{:3.3f}-MHz"\
-                        .format(l_ch['frontend']['feed'], l_ch['backend']['bandwith'])
-                    self.m_obs_general_data['line']= l_ch['classfits']['LINE']
-                    l_ch['classfits']['TELESCOP']= self.m_commons.class_telescope_name(l_ch)
-                    " temp "
-                    l_ch['classfits']['TSYS']= 1.0
-                    l_ch['classfits']['CALTEMP']= l_ch['frontend']['cal_mark_temp'].value
-                    " time "
-                    l_ch['classfits']['LST'] = l_lsts.to('s').value     
-                    l_ch['classfits']['OBSTIME']= l_ch['integrated_data']['data_integration']
-                    "  "                    
-                    l_ch['classfits']['CDELT1']= (l_ch['frontend']['bandwidth'] / 
-                                                l_ch['backend']['bins']).to('Hz')                    
-                    " freq and velocity "                    
-                    l_ch['classfits']['RESTFREQ']= self.m_summary['summary']['restfreq'].to(unit.Hz).value
-                    self.m_obs_general_data['restfreq']= l_ch['classfits']['RESTFREQ']
-                    l_ch['classfits']['restfreq']= l_ch['classfits']['RESTFREQ']
-                    l_ch['classfits']['VELOCITY']= l_ch['scheduled']['vlsr'].to("m/s").value                    
-                    l_df= (l_ch['frontend']['bandwidth'] / l_ch['backend']['bins']).to('Hz')
-                    l_ch['classfits']['CDELT1']= l_df.value
-                    self.m_obs_general_data['cdelt1']= l_ch['classfits']['CDELT1']
-                    l_deltav= - l_df/ l_ch['classfits']['RESTFREQ'] * const.c
-                    l_ch['classfits']['DELTAV']= l_deltav.value
-                    " Objects Coordinates "                    
-                    l_ch['classfits']['CDELT2'] = l_ch['scheduled']['ra_offset'].to(unit.deg).value
-                    l_ch['classfits']['CDELT3'] = l_ch['scheduled']['dec_offset'].to(unit.deg).value
-                    l_ch['classfits']['AZIMUTH']= l_ch['integrated_data']['data_az'].to(unit.deg).value
-                    l_ch['classfits']['ELEVATION']= l_ch['integrated_data']['data_el'].to(unit.deg).value
-                    l_ch['classfits']['CRVAL2']= l_ch['integrated_data']['data_ra'].to(unit.deg).value
-                    l_ch['classfits']['CRVAL3']= l_ch['integrated_data']['data_dec'].to(unit.deg).value
-                    " data "
-                    l_ch['classfits']['OBSTIME'] = l_ch['integrated_data']['data_integration']    
-                    l_ch['classfits']['MAXIS1'] = l_ch['backend']['bins']
-                    self.m_obs_general_data['maxis1']= l_ch['classfits']['MAXIS1']
-                    l_ch['classfits']['SPECTRUM']= l_ch['integrated_data']['spectrum']
-                    l_ch['classfits']['CRPIX1']=  l_ch['backend']['bins'] // 2 + 1                
-                except Exception as e:
-                    self.m_logger.error("Error preparing class data: " +str(e))
+        " @todo gestire i dati in caso di campo singolo spettro mediato o serie di spettri"        
+        for l_feed in self.m_group_on_off_cal:        
+            for l_chx in self.m_group_on_off_cal[l_feed]:              
+                " single entry on classfits table "
+                for l_ch in self.m_group_on_off_cal[l_feed][l_chx]['on']:
+                    #pdb.set_trace()
+                    " Generic observation data copy to dedicated dict, more copies "
+                    " below during calculations "
+                    self.m_obs_general_data={}
+                    self.m_obs_general_data['ra']= l_ch['scheduled']['ra'].to(unit.deg).value
+                    self.m_obs_general_data['dec']= l_ch['scheduled']['dec'].to(unit.deg).value
+                    self.m_obs_general_data['source']= l_ch['scheduled']['source']
+                    self.m_obs_general_data['date-red']= Time.now().to_datetime().strftime('%d/%m/%y')
+                    " classfits new dict filling process "
+                    l_ch['classfits']={}
+                    " ch by ch "                                
+                    try:
+                        " Lavoro con  i dati integrati "
+                        " ut "                                                                           
+                        l_tMjd= l_ch['integrated_data']['data_mjd'].mjd
+                        l_ch['classfits']['UT']= ( l_tMjd - np.floor(l_tMjd)) * 86400
+                        " date "                    
+                        
+                        l_ch['classfits']['DATE']= l_ch['integrated_data']['data_mjd'].strftime('%d/%m/%y') 
+                        " lsts "
+                        l_lsts= l_ch['integrated_data']['data_mjd'].sidereal_time('apparent', \
+                                  fitslike_commons.Fitslike_commons.\
+                                      get_site_location(l_ch['scheduled']['antenna']).lon)
+                        l_lsts= l_lsts.value * unit.hr                                     
+                        " infos "                    
+                        l_ch['classfits']['OBJECT']= l_ch['scheduled']['source']
+                        l_ch['classfits']['LINE']= "F{}-{:3.3f}-MHz"\
+                            .format(l_ch['frontend']['feed'], l_ch['backend']['bandwith'])
+                        self.m_obs_general_data['line']= l_ch['classfits']['LINE']
+                        l_ch['classfits']['TELESCOP']= self.m_commons.class_telescope_name(l_ch)
+                        " temp "
+                        l_ch['classfits']['TSYS']= 1.0
+                        l_ch['classfits']['CALTEMP']= l_ch['frontend']['cal_mark_temp'].value
+                        " time "
+                        l_ch['classfits']['LST'] = l_lsts.to('s').value     
+                        l_ch['classfits']['OBSTIME']= l_ch['integrated_data']['data_integration']
+                        "  "                    
+                        l_ch['classfits']['CDELT1']= (l_ch['frontend']['bandwidth'] / 
+                                                    l_ch['backend']['bins']).to('Hz')                    
+                        " freq and velocity "                    
+                        l_ch['classfits']['RESTFREQ']= self.m_summary['summary']['restfreq'].to(unit.Hz).value
+                        self.m_obs_general_data['restfreq']= l_ch['classfits']['RESTFREQ']
+                        l_ch['classfits']['restfreq']= l_ch['classfits']['RESTFREQ']
+                        l_ch['classfits']['VELOCITY']= l_ch['scheduled']['vlsr'].to("m/s").value                    
+                        l_df= (l_ch['frontend']['bandwidth'] / l_ch['backend']['bins']).to('Hz')
+                        l_ch['classfits']['CDELT1']= l_df.value
+                        self.m_obs_general_data['cdelt1']= l_ch['classfits']['CDELT1']
+                        l_deltav= - l_df/ l_ch['classfits']['RESTFREQ'] * const.c
+                        l_ch['classfits']['DELTAV']= l_deltav.value
+                        " Objects Coordinates "                    
+                        l_ch['classfits']['CDELT2'] = l_ch['scheduled']['ra_offset'].to(unit.deg).value
+                        l_ch['classfits']['CDELT3'] = l_ch['scheduled']['dec_offset'].to(unit.deg).value
+                        l_ch['classfits']['AZIMUTH']= l_ch['integrated_data']['data_az'].to(unit.deg).value
+                        l_ch['classfits']['ELEVATION']= l_ch['integrated_data']['data_el'].to(unit.deg).value
+                        l_ch['classfits']['CRVAL2']= l_ch['integrated_data']['data_ra'].to(unit.deg).value
+                        l_ch['classfits']['CRVAL3']= l_ch['integrated_data']['data_dec'].to(unit.deg).value
+                        " data "
+                        l_ch['classfits']['OBSTIME'] = l_ch['integrated_data']['data_integration']    
+                        l_ch['classfits']['MAXIS1'] = l_ch['backend']['bins']
+                        self.m_obs_general_data['maxis1']= l_ch['classfits']['MAXIS1']
+                        l_ch['classfits']['SPECTRUM']= l_ch['integrated_data']['spectrum']
+                        l_ch['classfits']['CRPIX1']=  l_ch['backend']['bins'] // 2 + 1                
+                    except Exception as e:
+                        self.m_logger.error("Error preparing class data: " +str(e))
                     
             
     def classfitsWrite(self):
@@ -492,23 +502,24 @@ class Fitslike_handler():
                                  #format="{}D".format(channels[0]))
         One file per feed (on, calibrated )        
         """                                
+        " clear - create destination folder "
         if os.path.exists(self.m_outputPath):
             shutil.rmtree(self.m_outputPath)    
         os.makedirs(self.m_outputPath)
         " for every feed "
-        for l_chx in self.m_group_on_off_cal:                          
-            l_outFileName= self.m_outputPath+ "feed_{}_cal.fits".format(l_chx)
-            " for every column in classfits definition "
+        for l_feed in self.m_group_on_off_cal:            
+            l_outFileName= self.m_outputPath+ "feed_{}_cal.fits".format(l_feed)
             l_newCols=[]
             for classCol in self.m_commons.getClassfitsColumnsZip():
                 " [ name, form, unit ] column by column data building "                
                 " fill one column looking into every feed[on], and builds column data "                     
-                l_colData=[]                 
-                for l_ch in self.m_group_on_off_cal[l_chx]['on']:
-                    " converted fits data matches with classfits columns?"                    
-                    if classCol[0] in l_ch['classfits'].keys():
-                        " found match, add data to column data "
-                        l_colData.append(l_ch['classfits'][classCol[0]])
+                l_colData=[]                                 
+                for l_chx in self.m_group_on_off_cal[l_feed]:
+                    for l_ch in self.m_group_on_off_cal[l_feed][l_chx]['on']:
+                        " converted fits data matches with classfits columns? "
+                        if classCol[0] in l_ch['classfits'].keys():
+                            " found match, add data to column data "
+                            l_colData.append(l_ch['classfits'][classCol[0]])
                 try:
                     " col creation "                
                     l_newCols.append(fits.Column(name= classCol[0], format= classCol[1],\
@@ -518,8 +529,7 @@ class Fitslike_handler():
                     self.m_logger.error("column: " +str(classCol))
                     self.m_logger.error("column data: " + str(l_colData))
                     pdb.set_trace()
-            " @todo manca spectrum col (penso dipenda da stokes per la dimensione "
-                
+                    
             l_hdData= self.m_obs_general_data
             " header "
             l_hdu= fits.PrimaryHDU() 
@@ -536,9 +546,8 @@ class Fitslike_handler():
                 l_hdu.header['RESTFREQ'] = l_hdData['restfreq']
                 l_hdu.header['MAXIS1'] = l_hdData['maxis1']
             except KeyError as e:
-                self.m_logger.error("Exception filling " + l_outFileName + " header data: "+ str(e))
-                
-            " data "
+                self.m_logger.error("Exception filling " + l_outFileName + " header data: "+ str(e))                    
+                " data "
             try:
                 l_cdefs= fits.ColDefs(l_newCols)
                 l_hdu= fits.BinTableHDU().from_columns(l_cdefs)            
