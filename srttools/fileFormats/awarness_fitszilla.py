@@ -152,6 +152,7 @@ class Awarness_fitszilla():
         l_restFreq= self.m_intermediate['sum_restfreq'] * unit.MHz
         l_values= [l_restFreq]        
         self.m_processedRepr['summary']= dict(zip(l_keys, l_values))
+        print(self.m_processedRepr['summary'])
             
     def _process_observation(self):
         """
@@ -171,7 +172,7 @@ class Awarness_fitszilla():
         self.m_intermediate['obs_el_offset'] = \
             self.m_intermediate['obs_el_offset']*unit.rad
         self.m_intermediate['file_name']= self.m_fileName
-        self.m_intermediate['obs_vlsr'] *=  unit.Unit("m/s")
+        self.m_intermediate['obs_vlsr'] *=  unit.Unit("km/s")
         "todo : trasportare le coordinate  per ogni feed?"        
         l_scheduled= {}
         try:
@@ -263,7 +264,7 @@ class Awarness_fitszilla():
         # Back end dic keys
         l_beDictKeys= [
             'id', 'bins', 'sample_rate',
-            'bandwith', 'frequency', 'data_type', 'integration_time'
+            'bandwidth', 'frequency', 'data_type', 'integration_time'
             ]
         # zip front end
         l_frontEnds= {}        
@@ -290,7 +291,7 @@ class Awarness_fitszilla():
                     self.m_intermediate['be_id'],
                     self.m_intermediate['be_bins'] ,
                     self.m_intermediate['be_sample_rate'],
-                    self.m_intermediate['be_bandwidth'],
+                    self.m_intermediate['be_bandwidth'] * unit.Unit("MHz"),
                     self.m_intermediate['be_frequency'], 
                     self.m_intermediate['be_data_type'],                       
                     )
@@ -555,13 +556,16 @@ class Awarness_fitszilla():
         Extra data processing
         Filling not present keywords    
         """                        
-        for feed in self.m_processedRepr.keys():            
+        for feed in self.m_processedRepr.keys():
             for chx in self.m_processedRepr[feed]:
                 l_chx = self.m_processedRepr[feed][chx]
                 l_chx['extras']= {}         
                 " weather "
-                l_weather= self.m_intermediate['ex_weather']
-                l_chx['extras']['weather']= self.m_commons.calculate_weather(l_weather[1] + 273.15, l_weather[0])
+                l_weather= self.m_intermediate['ex_weather']                                
+                l_chx['extras']['weather']= []
+                for el in l_weather:
+                    l_chx['extras']['weather'].append(\
+                        self.m_commons.calculate_weather(el[1] + 273.15, el[0]))                    
             
                 
             

@@ -11,7 +11,7 @@
 	 "components": {
     	"summary":{
         	"parser":{
-            	"sum_restfreq":["PRIMARY", "HEADER", "RESTFREQ"]
+            	"sum_restfreq":["PRIMARY", "HEADER", "RESTFREQ1"]
         	}
     	},
 		"observation": {		

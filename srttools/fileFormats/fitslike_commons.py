@@ -197,9 +197,8 @@ class Fitslike_commons():
         Tm = 0.673 * p_tmp + 83.0
         C = 1E6 * mw / (k2 - k1 * eps0 + k3 / Tm) / RS
         e0 = np.exp(1.81 + 17.27 * DPT / (DPT + 237.5))
-        ZWDS = 0.002277 * (0.005 + 1255 / p_tmp) * e0    
-        return ZWDS * C * 100.
-    
+        ZWDS = 0.002277 * (0.005 + 1255 / p_tmp) * e0            
+        return ZWDS * C * 100.  
     
     @staticmethod
     def getClassfitsColumnsZip():

@@ -432,26 +432,27 @@ class Fitslike_handler():
                     self.m_obs_general_data['date-red']= Time.now().to_datetime().strftime('%d/%m/%y')
                     " classfits new dict filling process "
                     l_ch['classfits']={}
-                    " ch by ch "                                
+                    " ch by ch "
                     try:
                         " Lavoro con  i dati integrati "
                         " ut "                                                                           
                         l_tMjd= l_ch['integrated_data']['data_mjd'].mjd
                         l_ch['classfits']['UT']= ( l_tMjd - np.floor(l_tMjd)) * 86400
-                        " date "                    
-                        
-                        l_ch['classfits']['DATE']= l_ch['integrated_data']['data_mjd'].strftime('%d/%m/%y') 
+                        " date "                                            
+                        l_ch['classfits']['DATE-OBS']= l_ch['integrated_data']['data_mjd'].strftime('%d/%m/%y') 
                         " lsts "
                         l_lsts= l_ch['integrated_data']['data_mjd'].sidereal_time('apparent', \
                                   fitslike_commons.Fitslike_commons.\
                                       get_site_location(l_ch['scheduled']['antenna']).lon)
-                        l_lsts= l_lsts.value * unit.hr                                     
+                        l_lsts= l_lsts.value * unit.hr                              
                         " infos "                    
                         l_ch['classfits']['OBJECT']= l_ch['scheduled']['source']
                         l_ch['classfits']['LINE']= "F{}-{:3.3f}-MHz"\
-                            .format(l_ch['frontend']['feed'], l_ch['backend']['bandwith'])
+                            .format(l_ch['frontend']['feed'], l_ch['backend']['bandwidth'])
                         self.m_obs_general_data['line']= l_ch['classfits']['LINE']
                         l_ch['classfits']['TELESCOP']= self.m_commons.class_telescope_name(l_ch)
+                        l_mH2O= l_ch['integrated_data']['weather']
+                        l_ch['classfits']['MH2O']= l_mH2O
                         " temp "
                         l_ch['classfits']['TSYS']= 1.0
                         l_ch['classfits']['CALTEMP']= l_ch['frontend']['cal_mark_temp'].value
@@ -460,22 +461,23 @@ class Fitslike_handler():
                         l_ch['classfits']['OBSTIME']= l_ch['integrated_data']['data_integration']
                         "  "                    
                         l_ch['classfits']['CDELT1']= (l_ch['frontend']['bandwidth'] / 
-                                                    l_ch['backend']['bins']).to('Hz')                    
+                                                    l_ch['backend']['bins']).to('Hz')         
                         " freq and velocity "                    
-                        l_ch['classfits']['RESTFREQ']= self.m_summary['summary']['restfreq'].to(unit.Hz).value
-                        self.m_obs_general_data['restfreq']= l_ch['classfits']['RESTFREQ']
-                        l_ch['classfits']['restfreq']= l_ch['classfits']['RESTFREQ']
-                        l_ch['classfits']['VELOCITY']= l_ch['scheduled']['vlsr'].to("m/s").value                    
-                        l_df= (l_ch['frontend']['bandwidth'] / l_ch['backend']['bins']).to('Hz')
+                        l_ch['classfits']['RESTFREQ']= self.m_summary['summary']['restfreq'].to(unit.Hz).value                                                
+                        self.m_obs_general_data['restfreq']= l_ch['classfits']['RESTFREQ']                              
+                        l_ch['classfits']['VELOCITY']= l_ch['scheduled']['vlsr'].to("m/s").value                              
+                        l_df= (l_ch['backend']['bandwidth'] / l_ch['backend']['bins']).to('Hz')
                         l_ch['classfits']['CDELT1']= l_df.value
                         self.m_obs_general_data['cdelt1']= l_ch['classfits']['CDELT1']
                         l_deltav= - l_df/ l_ch['classfits']['RESTFREQ'] * const.c
                         l_ch['classfits']['DELTAV']= l_deltav.value
-                        " Objects Coordinates "                    
+                        " LOG test "
+                        #self.m_logger.warn("RESTFREQ {}".format(l_ch['classfits']['RESTFREQ']))                                                
+                        " Objects Coordinates "
                         l_ch['classfits']['CDELT2'] = l_ch['scheduled']['ra_offset'].to(unit.deg).value
                         l_ch['classfits']['CDELT3'] = l_ch['scheduled']['dec_offset'].to(unit.deg).value
                         l_ch['classfits']['AZIMUTH']= l_ch['integrated_data']['data_az'].to(unit.deg).value
-                        l_ch['classfits']['ELEVATION']= l_ch['integrated_data']['data_el'].to(unit.deg).value
+                        l_ch['classfits']['ELEVATIO']= l_ch['integrated_data']['data_el'].to(unit.deg).value
                         l_ch['classfits']['CRVAL2']= l_ch['integrated_data']['data_ra'].to(unit.deg).value
                         l_ch['classfits']['CRVAL3']= l_ch['integrated_data']['data_dec'].to(unit.deg).value
                         " data "
