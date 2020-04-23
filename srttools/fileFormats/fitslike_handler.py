@@ -346,35 +346,54 @@ class Fitslike_handler():
             for ch in self.m_group_on_off_cal[l_feed].keys():
                 l_group= self.m_group_on_off_cal[l_feed][ch]        
                 l_calMarkTemp= l_group['on'][0]['frontend']['cal_mark_temp']                         
-                l_offAvg= sum(v['integrated_data']['spectrum'] for v in l_group['off']) / len(l_group['off'])            
+                #l_offAvg= sum(v['integrated_data']['spectrum'] for v in l_group['off']) / len(l_group['off'])
+                #l_offAvg= np.mean( l_group['off'], axis= 0)
+                " Avg off "
+                l_offAvgData= []
+                for el in l_group['off']:
+                    l_offAvgData.append(el['integrated_data']['spectrum'])
+                l_offAvg= np.mean(l_offAvgData, axis= 0)
+                " Avg call on"
+                l_CalOnAvg= None
                 if len(l_group['cal_on']):
-                    l_calOnAvg= sum(v['integrated_data']['spectrum'] for v in l_group['cal_on']) / len(l_group['cal_on'])
+                    #l_calOnAvg= sum(v['integrated_data']['spectrum'] for v in l_group['cal_on']) / len(l_group['cal_on'])
+                    l_CalOnAvgData= []
+                    for el in l_group['cal_on']:
+                        l_CalOnAvgData.append(el['integrated_data']['spectrum'])                    
+                    l_calOnAvg= np.mean(l_CalOnAvgData, axis= 0)
+                    l_calOnAvg = (l_calOnAvg - l_offAvg) / l_offAvg
+                " Avg cal off "
+                l_calOffAvg= None
                 if len(l_group['cal_off']):
-                    l_calOffAvg= sum(v['integrated_data']['spectrum'] for v in l_group['cal_off']) / len(l_group['cal_off'])
-                
-                "calcolo"
-                            
-                l_group['on_off']=[]            
-                l_group['on_off_cal']=[]
+                    #l_calOffAvg= sum(v['integrated_data']['spectrum'] for v in l_group['cal_off']) / len(l_group['cal_off'])
+                    l_CalOffAvgData= []
+                    for el in l_group['cal_off']:
+                        l_CalOffAvgData.append(el['integrated_data']['spectrum'])
+                    l_calOffAvg= np.mean(l_CalOffAvgData, axis= 0)
+                    l_calOffAvg = (l_calOffAvg - l_offAvg) / l_offAvg    
+                                        
+                " On - Off "                                
                 for elOn in l_group['on']:
                     on= elOn['integrated_data']['spectrum']
                     on_off= (on - l_offAvg)/l_offAvg
-                    l_group['on_off'].append(on_off)
-                            
-                #pdb.set_trace()
-                cal = np.array([l_calOnAvg, l_calOffAvg])
+                    elOn['integrated_data']['spectrum_on_off']= on_off
+                " Rescale with cal mark temp "
+                cal = np.array([l_calOnAvg, l_calOffAvg])                
                 good = (cal != 0) & ~np.isnan(cal) & ~np.isinf(cal)
-                cal = cal[good]
+                cal = cal[good]                
                 if len(cal) > 0:
                     meancal = np.median(cal) if len(cal) > 30 else np.mean(cal)    
                     calibration_factor = 1 / meancal * l_calMarkTemp
+                    pdb.set_trace()
+                    print("calibration_factor: " + str(calibration_factor))
+                    print("meancal: " + str(meancal))
+                    print("cal mark temp: " + str(l_calMarkTemp))
                 else:   
                     return None, ""
-                " Calibrated spectrum added to chx"            
+                " Calibrated spectrum added to chx"                            
                 for elOn in l_group['on']:                
-                    elOn['integrated_data']['calibrated'] = elOn['integrated_data']['spectrum'] * \
-                                        calibration_factor
-                    
+                    elOn['integrated_data']['calibrated'] = elOn['integrated_data']['spectrum_on_off'] * \
+                                        calibration_factor                    
                 
     def _on_off_match(self):                  
         """
@@ -401,7 +420,7 @@ class Fitslike_handler():
             " calcolo on meno off "
             
 
-    def ClassFitsAdaptations(self):
+    def ClassFitsAdaptations(self, p_wichGroup):
         """
         Generazione struttura dati secondo la definizione del classfist
                 
@@ -413,7 +432,14 @@ class Fitslike_handler():
         coordinate comandate in az, el o ra, dec
         coordinate osservate in crdelt2,3
         spettri separati per polarizzazione e per feed
-        un file per ogni uno        
+        un file per ogni uno
+        
+        Paramters
+        --------
+        
+        p_wichGroup: string
+            'on', 'off', 'cal' ... scelta del gruppo con cui lavorare
+            
         """
 
         " @todo inserire il campo cal is on ? quindi diversificare on ed off ?"      
@@ -421,7 +447,7 @@ class Fitslike_handler():
         for l_feed in self.m_group_on_off_cal:        
             for l_chx in self.m_group_on_off_cal[l_feed]:              
                 " single entry on classfits table "
-                for l_ch in self.m_group_on_off_cal[l_feed][l_chx]['on']:
+                for l_ch in self.m_group_on_off_cal[l_feed][l_chx][p_wichGroup]:
                     #pdb.set_trace()
                     " Generic observation data copy to dedicated dict, more copies "
                     " below during calculations "
@@ -484,54 +510,75 @@ class Fitslike_handler():
                         l_ch['classfits']['OBSTIME'] = l_ch['integrated_data']['data_integration']    
                         l_ch['classfits']['MAXIS1'] = l_ch['backend']['bins']
                         self.m_obs_general_data['maxis1']= l_ch['classfits']['MAXIS1']
-                        l_ch['classfits']['SPECTRUM']= l_ch['integrated_data']['spectrum']
-                        l_ch['classfits']['CRPIX1']=  l_ch['backend']['bins'] // 2 + 1                
+                        l_ch['classfits']['SPECTRUM_CAL']= l_ch['integrated_data']['calibrated']
+                        l_ch['classfits']['SPECTRUM_ON']= l_ch['integrated_data']['spectrum']
+                        l_ch['classfits']['SPECTRUM_ON_OFF']= l_ch['integrated_data']['spectrum_on_off']
+                        l_ch['classfits']['CRPIX1']=  l_ch['backend']['bins'] // 2 + 1           
                     except Exception as e:
                         self.m_logger.error("Error preparing class data: " +str(e))
                     
             
-    def classfitsWrite(self):
+    def classfitsWrite(self, p_group, p_on_what):
         """
         Scrittura file con calcolo header
         header prende i dati dai dati generici ricavati dalla scansione scansione      
         astropy fits works per column, i have to transpose all data while 
         generating new fits cols ( input data are per row basis
-        """
-        """
-        newcol = fits.Column(array=all_spectrums, name="SPECTRUM",
-                                 unit="K",
-                                 format="D")
-                                 #format="{}D".format(channels[0]))
-        One file per feed (on, calibrated )        
-        """                                
+                                  
+        Parameters
+        ---------
+        
+        p_group: string
+            which group, on ,off , cal_on, cal_off
+        p_on_what: string
+            wich kind of normalized data to use in case of 'on' group
+            it assumes 'on', 'on_off', 'cal'        
+                                          
+        """        
         " clear - create destination folder "
-        if os.path.exists(self.m_outputPath):
-            shutil.rmtree(self.m_outputPath)    
-        os.makedirs(self.m_outputPath)
+        if not os.path.exists(self.m_outputPath):
+            os.makedirs(self.m_outputPath)            
         " for every feed "
         for l_feed in self.m_group_on_off_cal:            
-            l_outFileName= self.m_outputPath+ "feed_{}_cal.fits".format(l_feed)
+            l_outFileName= self.m_outputPath+ "feed_{}_{}_{}.fits".format(l_feed, p_group, p_on_what)
+            self.m_logger.info("Preparing classfits file : " + l_outFileName)
             l_newCols=[]
+            " for every column expressed in classfits definition.."
             for classCol in self.m_commons.getClassfitsColumnsZip():
                 " [ name, form, unit ] column by column data building "                
                 " fill one column looking into every feed[on], and builds column data "                     
-                l_colData=[]                                 
-                for l_chx in self.m_group_on_off_cal[l_feed]:
-                    for l_ch in self.m_group_on_off_cal[l_feed][l_chx]['on']:
+                l_colData=[]                                
+                l_columnFound = False                 
+                " conditionals, some fields needs dedicated approach"
+                for l_chx in self.m_group_on_off_cal[l_feed]:                    
+                    for l_ch in self.m_group_on_off_cal[l_feed][l_chx][p_group]:
                         " converted fits data matches with classfits columns? "
-                        if classCol[0] in l_ch['classfits'].keys():
+                        " some columns need special care"
+                        l_inferredCol= classCol[0]
+                        "  we can choose between on on-off and calibrated spectrum for 'on' group "
+                        if classCol[0] == "SPECTRUM":
+                            l_inferredCol += '_'+ p_on_what.upper()                                
+                        " "                                 
+                        if l_inferredCol in l_ch['classfits'].keys():
                             " found match, add data to column data "
-                            l_colData.append(l_ch['classfits'][classCol[0]])
+                            l_colData.append(l_ch['classfits'][l_inferredCol])
+                            l_columnFound= True
                 try:
-                    " col creation "                
-                    l_newCols.append(fits.Column(name= classCol[0], format= classCol[1],\
-                                            unit= classCol[2], array= l_colData) )
+                    " adding column to classfits if fitszilla representation matches it"                    
+                    if l_columnFound:                        
+                        " some fields needs dedicated approach"
+                        if classCol[0] == "SPECTRUM":
+                            l_newCols.append(fits.Column(name= classCol[0], format= "{}D".format(len(l_colData[0])),\
+                                                         unit= classCol[2], array= l_colData))
+                        else:                    
+                            l_newCols.append(fits.Column(name= classCol[0], format= classCol[1],\
+                                                unit= classCol[2], array= l_colData) )
                 except Exception as e:
                     self.m_logger.error("classfits column creation exception: "+ str(e))
                     self.m_logger.error("column: " +str(classCol))
                     self.m_logger.error("column data: " + str(l_colData))
                     pdb.set_trace()
-                    
+                                                                                
             l_hdData= self.m_obs_general_data
             " header "
             l_hdu= fits.PrimaryHDU() 
@@ -552,16 +599,18 @@ class Fitslike_handler():
                 " data "
             try:
                 l_cdefs= fits.ColDefs(l_newCols)
-                l_hdu= fits.BinTableHDU().from_columns(l_cdefs)            
-                l_hdu.writeto(l_outFileName)
+                l_hdu= fits.BinTableHDU().from_columns(l_cdefs)                                        
             except Exception as e:                
-                self.m_logger.error("Exception creating classfits model or writing classfits file")
+                self.m_logger.error("Exception creating classfits model file")
                 self.m_logger.error("classfits file: " + l_outFileName)
                 self.m_logger.error(str(e))
+                return
                 #pdb.set_trace()
-            " @todo verificare "
-            
-            
-                
-                
-  
+            try:
+                if os.path.exists(l_outFileName):
+                    os.remove(l_outFileName)
+                l_hdu.writeto(l_outFileName)
+            except Exception as e:                
+                self.m_logger.error("Exception writings file")
+                self.m_logger.error("classfits file: " + l_outFileName)
+                self.m_logger.error(str(e))

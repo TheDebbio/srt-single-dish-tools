@@ -29,8 +29,10 @@ class TestFitslike_handler():
         l_fh.scan_data(nodding_dir)
         l_fh.group_on_off_cal()
         l_fh.normalize()
-        l_fh.ClassFitsAdaptations()
-        l_fh.classfitsWrite()
+        l_fh.ClassFitsAdaptations('on',)
+        l_fh.classfitsWrite('on', 'on')
+        l_fh.classfitsWrite('on', 'on_off')
+        l_fh.classfitsWrite('on', 'cal')
         #l_fh._on_off_match()
         #pdb.set_trace()
         

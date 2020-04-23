@@ -212,7 +212,7 @@ class Fitslike_commons():
              "LST", "OBSTIME", "CRPIX1", "RESTFREQ",
              "OBJECT", "VELOCITY", "CDELT1", "CDELT2",
              "CDELT3", "LINE", "SIGNAL", "CAL_IS_ON",
-             "CALTEMP"]
+             "CALTEMP", "SPECTRUM"]
         
         LIST_TFORM = \
             ["1D",
@@ -223,7 +223,7 @@ class Fitslike_commons():
              "1D", "1E", "1E", "1D",
              "12A", "1E", "1E", "1D",
              "1D", "12A", "1J", "1J",
-             "1D"]
+             "1D" , "ND" ]
         
         LIST_TUNIT = \
             ["d",
@@ -233,7 +233,7 @@ class Fitslike_commons():
              "deg", "deg", "", "s",
              "s", "s", "", "Hz",
              "", "m.s-1", "Hz", "deg",
-             "deg", "",  "", "", "K"]
+             "deg", "",  "", "", "K", "K"]
             
         return list(zip(LIST_TTYPE, LIST_TFORM, LIST_TUNIT))      
     
