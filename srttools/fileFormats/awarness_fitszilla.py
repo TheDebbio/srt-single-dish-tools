@@ -31,22 +31,21 @@ class Awarness_fitszilla():
         -------
         None
         """
+        self.m_errors= [] # errori interni, stringa composta, cchi come
         l_path, self.m_fileName = os.path.split(p_path)        
         self.m_commons = fitslike_commons.Fitslike_commons() 
         self.m_jsonRepr = fitslike_keywords.Keyword_json('fitszilla')
         self.m_components = self.m_jsonRepr.fitslike_components()        
         self.m_parsingDicts = {}
-        self.m_logger = logging.getLogger(self.m_commons.logger_name())
-        self.m_logger.info("Fitszilla input file dedocding")
-        for l_component in self.m_components:
-            self.m_logger.info("fitszilla registering component :  %s ",
-                               l_component)
+        self.m_logger = logging.getLogger(self.m_commons.logger_name())        
+        for l_component in self.m_components:            
             self.m_parsingDicts[l_component] = \
                 self.m_jsonRepr.parser(l_component)        
         self.m_fitszilla = l_fitszilla
 
     def parse(self):
-        """Fitszilla parsing
+        """
+        Fitszilla parsing
 
         Parse fitzilla input file following parsing dictionaried
         It only extract keywords from fitzilla without processing them.
@@ -100,6 +99,12 @@ class Awarness_fitszilla():
                     #                    l_key, l_inputKeyword)                      
         return self.m_intermediate
     
+    def getErrorList(self):
+        """
+        getter errors
+        """
+        return self.m_errors
+    
     def process(self):
         """
         Parsed keyword processing
@@ -137,11 +142,11 @@ class Awarness_fitszilla():
         self.m_scheduled= {}
         if 'summary' in self.m_fileName :
             self._process_summary()
-        else:    
+        else:
             self._process_observation()
             self._process_spectrum()
             self._process_coordinates()
-            self._process_extras()
+            self._process_extras()      
         return self.m_processedRepr
             
     def _process_summary(self):
@@ -173,10 +178,15 @@ class Awarness_fitszilla():
             self.m_intermediate['obs_el_offset']*unit.rad
         self.m_intermediate['file_name']= self.m_fileName
         self.m_intermediate['obs_vlsr'] *=  unit.Unit("km/s")
-        "todo : trasportare le coordinate  per ogni feed?"        
+        "todo : trasportare le coordinate  per ogni feed?"   
+        if self.m_intermediate['obs_backend_name']== 0.0:
+            self.m_intermediate['obs_backend_name']= 'UNKNOWN'
+            self._errorFromMissingKeyword('scheduled', 'obs_backend_name')
         l_scheduled= {}
         try:
-            l_scheduled['source']= self.m_intermediate['obs_source']            
+            l_scheduled['source']= self.m_intermediate['obs_source']               
+            l_scheduled['receiver_code']= self.m_intermediate['obs_receiver_code']            
+            l_scheduled['backend_name']= self.m_intermediate['obs_backend_name']            
             l_scheduled['antenna']= self.m_intermediate['obs_site']
             l_scheduled['date']= self.m_intermediate['obs_date']
             l_scheduled['ra']= self.m_intermediate['obs_ra']
@@ -191,7 +201,8 @@ class Awarness_fitszilla():
             l_scheduled['vlsr']= self.m_intermediate['obs_vlsr']
         except KeyError as e:
             self.m_logger.error("Key exception : " + str(e))
-        self.m_scheduled= l_scheduled.copy()        
+            self._errorFromMissingKeyword('scheduled', str(e))
+        self.m_scheduled= l_scheduled.copy()
        
     def _process_spectrum(self):
         """
@@ -567,11 +578,24 @@ class Awarness_fitszilla():
                     l_chx['extras']['weather'].append(\
                         self.m_commons.calculate_weather(el[1] + 273.15, el[0]))                    
             
-                
+    def _errorFromMissingKeyword(self, p_section, p_key):
+        """
+        Set  error for process upon missing keyws from fitszilla
+
+        Parameters
+        ----------
+        p_key : string
+            keyword section
+        p_key : string
+            missing keyword
+
+        Returns
+        -------
+        None.
+        """
+        l_mandatory={}
+        l_mandatory['scheduled']=['obs_backend_name','obs_site']  
+        if p_key in l_mandatory[p_section]:
+            self.m_errors.append("key error: {}:{}".format(p_section, p_key))
             
-            
-            
-            
-            
-                    
             

@@ -46,6 +46,7 @@ def _envelope_subscan(p_logger, p_ftype, p_path):
         l_aware= awarness_fitszilla.Awarness_fitszilla(l_fits, p_path) 
         l_aware.parse()
         l_repr= l_aware.process()
+        l_errors= l_aware.getErrorList()
         l_fits.close()
         l_fitslike= fitslike.Fitslike(l_repr)       
         if not l_fitslike.is_summary():
@@ -54,6 +55,9 @@ def _envelope_subscan(p_logger, p_ftype, p_path):
         l_fits =None                  
         l_repr= l_fitslike.get_inputRepr()          
         l_repr['file_name']= l_filename
+        l_repr['errors']= l_errors
+        for er in l_errors:
+            p_logger.error(er)
         return l_repr
                   
 class Fitslike_handler():
@@ -288,8 +292,7 @@ class Fitslike_handler():
                                 self.m_group_on_off_cal[l_feed]={}
                             if l_chx not in self.m_group_on_off_cal[l_feed].keys():
                                 self.m_group_on_off_cal[l_feed][l_chx]=l_onOffdict                            
-                        except KeyError as e:
-                            pdb.set_trace()
+                        except KeyError as e:                            
                             self.m_logger.error("key error: " + str(e))
                             continue
                                                 
@@ -383,11 +386,7 @@ class Fitslike_handler():
                 cal = cal[good]                
                 if len(cal) > 0:
                     meancal = np.median(cal) if len(cal) > 30 else np.mean(cal)    
-                    calibration_factor = 1 / meancal * l_calMarkTemp
-                    pdb.set_trace()
-                    print("calibration_factor: " + str(calibration_factor))
-                    print("meancal: " + str(meancal))
-                    print("cal mark temp: " + str(l_calMarkTemp))
+                    calibration_factor = 1 / meancal * l_calMarkTemp                                        
                 else:   
                     return None, ""
                 " Calibrated spectrum added to chx"                            
@@ -476,7 +475,10 @@ class Fitslike_handler():
                         l_ch['classfits']['LINE']= "F{}-{:3.3f}-MHz"\
                             .format(l_ch['frontend']['feed'], l_ch['backend']['bandwidth'])
                         self.m_obs_general_data['line']= l_ch['classfits']['LINE']
-                        l_ch['classfits']['TELESCOP']= self.m_commons.class_telescope_name(l_ch)
+                        try:
+                            l_ch['classfits']['TELESCOP']= self.m_commons.class_telescope_name(l_ch)
+                        except ValueError as e:
+                            self.m_logger.error(str(e))
                         l_mH2O= l_ch['integrated_data']['weather']
                         l_ch['classfits']['MH2O']= l_mH2O
                         " temp "
@@ -576,8 +578,7 @@ class Fitslike_handler():
                 except Exception as e:
                     self.m_logger.error("classfits column creation exception: "+ str(e))
                     self.m_logger.error("column: " +str(classCol))
-                    self.m_logger.error("column data: " + str(l_colData))
-                    pdb.set_trace()
+                    self.m_logger.error("column data: " + str(l_colData))                    
                                                                                 
             l_hdData= self.m_obs_general_data
             " header "

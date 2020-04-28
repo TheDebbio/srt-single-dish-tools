@@ -16,6 +16,8 @@
     	},
 		"observation": {		
 			"parser": {
+    			"obs_receiver_code": ["PRIMARY", "HEADER", "Receiver Code"],
+    			"obs_backend_name": ["PRIMARY", "HEADER", "Backend Name"],
 				"obs_source": ["PRIMARY", "HEADER", "SOURCE"],
 				"obs_vlsr": ["PRIMARY", "HEADER", "VLSR"],
 				"obs_site": ["PRIMARY", "HEADER", "ANTENNA"],   
@@ -28,7 +30,7 @@
 				"obs_el_offset": ["PRIMARY", "HEADER", "Elevation Offset"],
 				"obs_signal": ["PRIMARY", "HEADER", "SIGNAL"],
 				"obs_scantype": ["PRIMARY", "HEADER", "HIERARCH SubScanType"]
-		    		}		
+		    	}		
 		 	},
 		"spectrum": {
 			"parser": {
