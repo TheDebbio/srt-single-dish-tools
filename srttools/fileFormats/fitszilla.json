@@ -38,7 +38,7 @@
 				"be_bins": ["SECTION TABLE", "DATA", "bins"],
 				"be_sample_rate": ["SECTION TABLE", "DATA", "sampleRate"],
 				"be_bandwidth": ["SECTION TABLE", "DATA", "bandWidth"],
-				"be_frequency": ["SECTION TABLE", "DATA", "frequency"],
+				"be_frequency": ["SECTION TABLE", "DATA", "frequency"],				
 				"be_integration": ["SECTION TABLE", "HEADER", "Integration"],
 				"be_data_type":["SECTION TABLE", "DATA", "type"],
 				"fe_feeds":["RF INPUTS", "DATA", "feed"],

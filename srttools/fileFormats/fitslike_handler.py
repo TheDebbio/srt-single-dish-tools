@@ -174,9 +174,7 @@ class Fitslike_handler():
             self.m_pool.join()                
             self.m_subscans= self.m_subscans + [x.get() for x in l_results]
         self.m_logger.info("subscan numbers " + str(len(self.m_subscans)))        
-                            
-        
-        
+                                
     def group_on_off_cal(self):
         """
         Creates a new dict for :

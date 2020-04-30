@@ -108,7 +108,7 @@ class Fitslike():
                     l_coord_ra= l_chx['coordinates']['data_ra']
                     l_coord_dec= l_chx['coordinates']['data_dec']
                     l_coord_az= l_chx['coordinates']['data_az']
-                    l_coord_el= l_chx['coordinates']['data_el']                
+                    l_coord_el= l_chx['coordinates']['data_el']
                     l_spectrum= l_chx['spectrum']['data']
                     l_integration= len(l_chx['coordinates']['data_time'])
                 except KeyError as e:
@@ -120,8 +120,20 @@ class Fitslike():
                 l_coord_ra= np.mean(l_coord_ra, axis= 0)
                 l_coord_dec= np.mean(l_coord_dec, axis= 0)
                 l_coord_az= np.mean(l_coord_az, axis= 0)
-                l_coord_el= np.mean(l_coord_el, axis= 0)            
-                l_spectrum= np.mean(l_spectrum, axis= 0)
+                l_coord_el= np.mean(l_coord_el, axis= 0)    
+                if l_chx['backend']['data_type'] == 'stokes':
+                    "stokes l-r-q-u, joining data in one single array at the end of averaging"
+                    l_stokes= {}                    
+                    l_stokes['L']= l_spectrum[:l_chx['backend']['bins']]
+                    l_stokes['R']= l_spectrum[l_chx['backend']['bins']: 2* l_chx['backend']['bins']]
+                    l_stokes['Q']= l_spectrum[2* l_chx['backend']['bins']: 3* l_chx['backend']['bins']]
+                    l_stokes['U']= l_spectrum[-l_chx['backend']['bins']:]                                    
+                    for pol in l_stokes.keys():
+                        l_stokes[pol]= np.mean(l_stokes[pol], axis= 0)                        
+                    l_spectrum= np.concatenate((l_stokes['L'], l_stokes['R'], l_stokes['Q'], l_stokes['U']))
+                else:
+                    " power spectrum "
+                    l_spectrum= np.mean(l_spectrum, axis= 0)
                 l_integration *= l_chx['backend']['integration_time']
                 l_intDataList= [l_coord_time, l_coord_time_mjd, l_weather, l_coord_ra, l_coord_dec,
                                 l_coord_az, l_coord_el, l_spectrum, l_integration]
