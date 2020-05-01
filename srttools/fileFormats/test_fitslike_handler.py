@@ -10,15 +10,16 @@ Fitslike Handler objects testing
 
 import pdb
 import logging
+import os
 import fitslike_commons
 import fitslike_handler
 
-nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/20181210-232201-24-18-W3OH_small/'
-nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/very_small/'
-nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/20181210-232201-24-18-W3OH/'
-xarcos_a= '/home/debbio/discos/Scan/XARCOS/20191230-100156-30-19-Cep_Kband/'
+nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/20181210-232201-24-18-W3OH_small'
+nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/very_small'
+nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/20181210-232201-24-18-W3OH'
+xarcos_a= '/home/debbio/discos/Scan/XARCOS/20191230-100156-30-19-Cep_Kband'
 input_dir = xarcos_a
-output_path= '/home/debbio/discos/Scan/SARDARA_Nodding/debbio-20181210-232201-24-18-W3OH/'
+output_fname_prefix= '/debbio-'
 nodding_zilla_1_8 = '20181210-232307-24-18-W3OH_001_008.fits'
 
 class TestFitslike_handler():
@@ -27,7 +28,10 @@ class TestFitslike_handler():
     def test_scan():
         """Scan input file test"""
         l_fh= fitslike_handler.Fitslike_handler('fitszilla', 'nod')        
-        l_fh.setOutputPath(output_path)
+        tail, head = os.path.split(input_dir)         
+        l_outPath= tail+output_fname_prefix + head+'/'
+        print(l_outPath)
+        l_fh.setOutputPath(l_outPath)
         l_fh.scan_data(input_dir)
         l_fh.group_on_off_cal()
         l_fh.normalize()

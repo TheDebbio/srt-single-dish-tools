@@ -39,8 +39,8 @@ def _envelope_subscan(p_logger, p_ftype, p_path):
       "todo comporre il parsing attraverso il fitslike ?"       
       p_logger.info("Scanning " + p_path)            
           
-      if  p_ftype== 'fitszilla':                      
-        l_path, l_filename= os.path.split(p_path)
+      if  p_ftype== 'fitszilla':     
+        l_path, l_filename= os.path.split(p_path)        
         p_logger.info("fitszilla parsing: " + p_path)
         l_fits = fits.open(p_path)
         l_aware= awarness_fitszilla.Awarness_fitszilla(l_fits, p_path) 
@@ -114,6 +114,7 @@ class Fitslike_handler():
         self.m_group_on_off_cal={}
         self.m_summary= {}
         self.m_outputPath= ''
+        self.m_no_cal= False
      
     def setOutputPath(self, p_path):
         """ output path setter"""
@@ -167,11 +168,11 @@ class Fitslike_handler():
                         _envelope_subscan,
                         [self.m_logger,
                         'fitszilla',
-                        p_dataDir + l_fPath
+                        p_dataDir +'/'+ l_fPath
                         ])      
                     )
             self.m_pool.close()
-            self.m_pool.join()                
+            self.m_pool.join()
             self.m_subscans= self.m_subscans + [x.get() for x in l_results]
         self.m_logger.info("subscan numbers " + str(len(self.m_subscans)))        
                                 
@@ -354,8 +355,8 @@ class Fitslike_handler():
                 for el in l_group['off']:
                     l_offAvgData.append(el['integrated_data']['spectrum'])
                 l_offAvg= np.mean(l_offAvgData, axis= 0)
-                " Avg call on"
-                l_CalOnAvg= None
+                " Avg call on"                
+                l_calOnAvg= None
                 if len(l_group['cal_on']):
                     #l_calOnAvg= sum(v['integrated_data']['spectrum'] for v in l_group['cal_on']) / len(l_group['cal_on'])
                     l_CalOnAvgData= []
@@ -372,25 +373,30 @@ class Fitslike_handler():
                         l_CalOffAvgData.append(el['integrated_data']['spectrum'])
                     l_calOffAvg= np.mean(l_CalOffAvgData, axis= 0)
                     l_calOffAvg = (l_calOffAvg - l_offAvg) / l_offAvg    
-                                        
-                " On - Off "                                
+                " On - Off " 
                 for elOn in l_group['on']:
                     on= elOn['integrated_data']['spectrum']
                     on_off= (on - l_offAvg)/l_offAvg
                     elOn['integrated_data']['spectrum_on_off']= on_off
-                " Rescale with cal mark temp "
+                " Rescale with cal mark temp "                
                 cal = np.array([l_calOnAvg, l_calOffAvg])                
-                good = (cal != 0) & ~np.isnan(cal) & ~np.isinf(cal)
-                cal = cal[good]                
-                if len(cal) > 0:
-                    meancal = np.median(cal) if len(cal) > 30 else np.mean(cal)    
-                    calibration_factor = 1 / meancal * l_calMarkTemp                                        
-                else:   
-                    return None, ""
-                " Calibrated spectrum added to chx"                            
-                for elOn in l_group['on']:                
-                    elOn['integrated_data']['calibrated'] = elOn['integrated_data']['spectrum_on_off'] * \
-                                        calibration_factor                    
+                try:
+                    good = (cal != 0) & ~np.isnan(cal) & ~np.isinf(cal)
+                    pdb.set_trace()    
+                    cal = cal[good]                
+                    if len(cal) > 0:
+                        meancal = np.median(cal) if len(cal) > 30 else np.mean(cal)    
+                        calibration_factor = 1 / meancal * l_calMarkTemp                                        
+                    else:   
+                        return None, ""
+                    " Calibrated spectrum added to chx"                            
+                    for elOn in l_group['on']:                
+                        elOn['integrated_data']['calibrated'] = elOn['integrated_data']['spectrum_on_off'] * \
+                                            calibration_factor                    
+                except Exception as e:
+                    self.m_no_cal= True
+                    self.m_logger.error("Cannot apply calibration to this data set")
+                    self.m_logger.error(str(e))
                 
     def _on_off_match(self):                  
         """
