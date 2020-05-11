@@ -18,7 +18,8 @@ nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/20181210-232201-24-18-W3
 nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/very_small'
 nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/20181210-232201-24-18-W3OH'
 xarcos_a= '/home/debbio/discos/Scan/XARCOS/20191230-100156-30-19-Cep_Kband'
-input_dir = xarcos_a
+xarcos_jan= '/home/debbio/discos/Scan/XARCOS/orikl-MED-211119'
+input_dir = xarcos_jan
 output_fname_prefix= '/debbio-'
 nodding_zilla_1_8 = '20181210-232307-24-18-W3OH_001_008.fits'
 

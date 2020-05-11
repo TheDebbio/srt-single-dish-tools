@@ -17,6 +17,7 @@ from multiprocessing import Pool
 from fitslike_commons import keywords as kws
 import os
 import shutil
+import traceback
 import pdb
 
 def _envelope_subscan(p_logger, p_ftype, p_path):
@@ -462,12 +463,18 @@ class Fitslike_handler():
                     " classfits new dict filling process "
                     l_ch['classfits']={}
                     " ch by ch "
-                    try:
-                        " Lavoro con  i dati integrati "
-                        " ut "                                                                           
+                    try:                        
+                        " In some cases we have no bandwidth and no frequency in sectin table "
+                        " in this case we use rf table data for bandwidth and frequency "                        
+                        if not l_ch['backend']['bandwidth']:
+                            l_ch['backend']['bandwidth']= l_ch['frontend']['bandwidth']                        
+                        if not l_ch['backend']['frequency']:
+                            l_ch['backend']['frequency']= l_ch['frontend']['frequency']                        
+                        " Lavoro con i dati integrati "
+                        " ut "                                                                    
                         l_tMjd= l_ch['integrated_data']['data_mjd'].mjd
                         l_ch['classfits']['UT']= ( l_tMjd - np.floor(l_tMjd)) * 86400
-                        " date "                                            
+                        " date "
                         l_ch['classfits']['DATE-OBS']= l_ch['integrated_data']['data_mjd'].strftime('%d/%m/%y') 
                         " lsts "
                         l_lsts= l_ch['integrated_data']['data_mjd'].sidereal_time('apparent', \
@@ -491,7 +498,7 @@ class Fitslike_handler():
                         " time "
                         l_ch['classfits']['LST'] = l_lsts.to('s').value     
                         l_ch['classfits']['OBSTIME']= l_ch['integrated_data']['data_integration']
-                        "  "                    
+                        "  "
                         l_ch['classfits']['CDELT1']= (l_ch['frontend']['bandwidth'] / 
                                                     l_ch['backend']['bins']).to('Hz')         
                         " freq and velocity "                    
@@ -516,11 +523,15 @@ class Fitslike_handler():
                         l_ch['classfits']['OBSTIME'] = l_ch['integrated_data']['data_integration']    
                         l_ch['classfits']['MAXIS1'] = l_ch['backend']['bins']
                         self.m_obs_general_data['maxis1']= l_ch['classfits']['MAXIS1']
-                        l_ch['classfits']['SPECTRUM_CAL']= l_ch['integrated_data']['calibrated']
+                        try:
+                            l_ch['classfits']['SPECTRUM_CAL']= l_ch['integrated_data']['calibrated']                            
+                        except Exception as e:
+                            l_ch['classfits']['SPECTRUM_CAL']= np.zeros(len(l_ch['integrated_data']['spectrum'])) 
                         l_ch['classfits']['SPECTRUM_ON']= l_ch['integrated_data']['spectrum']
                         l_ch['classfits']['SPECTRUM_ON_OFF']= l_ch['integrated_data']['spectrum_on_off']
                         l_ch['classfits']['CRPIX1']=  l_ch['backend']['bins'] // 2 + 1           
                     except Exception as e:
+                        traceback.print_exc()
                         self.m_logger.error("Error preparing class data: " +str(e))
                     
             

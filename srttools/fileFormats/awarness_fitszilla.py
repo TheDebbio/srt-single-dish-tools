@@ -13,6 +13,7 @@ import fitslike_keywords
 import fitslike_commons
 import logging
 import os
+import traceback
 import pdb
 
 class Awarness_fitszilla():
@@ -94,7 +95,7 @@ class Awarness_fitszilla():
                 try:
                     self.m_intermediate[l_key] = l_fitsTableContent[l_inputKeyword]
                 except:
-                    self.m_intermediate[l_key]= 0.0                                
+                    self.m_intermediate[l_key]= None                                
                     #self.m_logger.error("Missing [table, keyword] %s: %s",
                     #                    l_key, l_inputKeyword)                      
         return self.m_intermediate
@@ -279,16 +280,21 @@ class Awarness_fitszilla():
             ]
         # zip front end
         l_frontEnds= {}        
-        l_zipFrontEnds = zip(
-                    self.m_intermediate['fe_be_id'],
-                    self.m_intermediate['fe_feeds'],
-                    self.m_intermediate['fe_if'],
-                    self.m_intermediate['fe_polarizations'],
-                    self.m_intermediate['fe_frequency'],
-                    self.m_intermediate['fe_bandwidth'],
-                    self.m_intermediate['fe_local_oscillator'],
-                    self.m_intermediate['fe_cal_mark_temp'],                    
-                    )     
+        l_zipFrontEnds= {}
+        try:
+            l_zipFrontEnds = zip(
+                        self.m_intermediate['fe_be_id'],
+                        self.m_intermediate['fe_feeds'],
+                        self.m_intermediate['fe_if'],
+                        self.m_intermediate['fe_polarizations'],
+                        self.m_intermediate['fe_frequency'],
+                        self.m_intermediate['fe_bandwidth'],
+                        self.m_intermediate['fe_local_oscillator'],
+                        self.m_intermediate['fe_cal_mark_temp'],                    
+                        )     
+        except Exception as e:
+            self.m_logger.error("frontend end zip error: " +str(e))
+            traceback.print_exc()
         # create dict[backend_id]= front end
         for l_zipFe in l_zipFrontEnds:
             l_feDict= dict(zip(l_feDictKeys, l_zipFe))     
@@ -296,16 +302,28 @@ class Awarness_fitszilla():
             # Adding units
             _add_unit_to_fe(l_feDict)
             l_frontEnds[l_feDict['be_id']]= l_feDict.copy()
+        " Pre check backend columns "
+        if self.m_intermediate['be_frequency']== None:
+            self.m_intermediate['be_frequency'] = [None] * len(self.m_intermediate['be_id'])            
+        if self.m_intermediate['be_bandwidth']== None:
+            self.m_intermediate['be_bandwidth'] = [None] * len(self.m_intermediate['be_id'])
+        else:
+            self.m_intermediate['be_bandwidth']= self.m_intermediate['be_bandwidth'] * unit.Unit("MHz")
         #  zip backend
         l_backEnds= {}                        
-        l_zipBackend= zip(
-                    self.m_intermediate['be_id'],
-                    self.m_intermediate['be_bins'] ,
-                    self.m_intermediate['be_sample_rate'],
-                    self.m_intermediate['be_bandwidth'] * unit.Unit("MHz"),
-                    self.m_intermediate['be_frequency'], 
-                    self.m_intermediate['be_data_type'],                       
-                    )
+        l_zipBackend= {}
+        try:
+            l_zipBackend= zip(
+                        self.m_intermediate['be_id'],
+                        self.m_intermediate['be_bins'] ,
+                        self.m_intermediate['be_sample_rate'],
+                        self.m_intermediate['be_bandwidth'],
+                        self.m_intermediate['be_frequency'], 
+                        self.m_intermediate['be_data_type'],                       
+                        )
+        except Exception as e:
+            self.m_logger.error("back end zip error: " +str(e))            
+            traceback.print_exc()                    
         # create dict[backend_id]= back end
         for l_zipBe in l_zipBackend:
             l_beDict= dict(zip(l_beDictKeys, l_zipBe))
@@ -377,9 +395,9 @@ class Awarness_fitszilla():
             -------
             todo
 
-            """
+            """            
             if (len(p_xoffsets)) <= 2:
-                return np.array([0].len(p_xoffsets))
+                return np.array([0]*len(p_xoffsets))
             l_npXOffsets= np.asarray(p_xoffsets)
             l_npYOffsets= np.asarray(p_yoffsets)
             l_num_lat_feeds= len(p_xoffsets) -1
@@ -475,13 +493,13 @@ class Awarness_fitszilla():
             p_yoffs = p_yoffs
             p_xoffs = p_xoffs
             l_el = copy.deepcopy(p_el)
-            l_az = copy.deepcopy(p_az)            
+            l_az = copy.deepcopy(p_az)
             l_el += p_yoffs
-            l_az += p_xoffs / np.cos(l_el)            
+            l_az += p_xoffs / np.cos(l_el)
             l_coordsAltAz = AltAz(az=Angle(l_az), 
                                   alt=Angle(l_el),
-                           location= p_location,
-                           obstime= p_obstimes)            
+                                  location= p_location,
+                                  obstime= p_obstimes)            
             # According to line_profiler, coords.icrs is *by far* the longest
             # operation in this function, taking between 80 and 90% of the
             # execution time. Need to study a way to avoid this.
@@ -501,7 +519,7 @@ class Awarness_fitszilla():
             'data_derot_angle': np.asarray(
                 self.m_intermediate['data_derot_angle']
                 )* unit.rad
-            }        
+            }
         # reduce feeds removing duplicate (left/right)
         l_feedCoordinatesDict= dict.fromkeys(self.m_intermediate['fe_feeds'])
         # copy usefull coord. for every feed
@@ -512,8 +530,7 @@ class Awarness_fitszilla():
         # rest angle for every feed            
         l_feedXOffsets = self.m_intermediate['fe_x_offset']* unit.rad
         l_feedYOffsets = self.m_intermediate['fe_y_offset']* unit.rad
-        l_feedsRestAngles = _coordinate_feeds_rest_angle(l_feedXOffsets,
-                                                    l_feedYOffsets)
+        l_feedsRestAngles = _coordinate_feeds_rest_angle(l_feedXOffsets, l_feedYOffsets)
         # for every feed..
         # decor feed - coordinates dict with feed rest angle        
         # update observing angle on feed basis
