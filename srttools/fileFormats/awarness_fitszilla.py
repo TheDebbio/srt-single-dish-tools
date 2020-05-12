@@ -335,7 +335,7 @@ class Awarness_fitszilla():
             l_innerDict['scheduled']= self.m_scheduled.copy()
             l_innerDict['backend']= l_backEnds[l_elBe]
             l_innerDict['frontend']= l_frontEnds[l_elBe]
-            l_innerDict['spectrum']= {}            
+            l_innerDict['spectrum']= {}                        
             l_innerDict['spectrum']['data']= np.asarray(
                     self.m_intermediate['ch'+str(l_elBe)]
                     )

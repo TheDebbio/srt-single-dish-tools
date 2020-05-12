@@ -99,6 +99,7 @@ class Fitslike():
         l_processedDictKeys = ["data_time", "data_mjd", "weather", "data_ra", "data_dec",
                                "data_az", "data_el", "spectrum", "data_integration"]         
         for l_feed in self.m_inputRepr.keys(): 
+            l_stokes= {}
             for l_ch in self.m_inputRepr[l_feed].keys():                              
                 l_chx= self.m_inputRepr[l_feed][l_ch]               
                 try:
@@ -121,28 +122,31 @@ class Fitslike():
                 l_coord_dec= np.mean(l_coord_dec, axis= 0)
                 l_coord_az= np.mean(l_coord_az, axis= 0)
                 l_coord_el= np.mean(l_coord_el, axis= 0)    
+                l_spectrum= np.mean(l_spectrum, axis= 0)                                    
                 if l_chx['backend']['data_type'] == 'stokes':
-                    "stokes l-r-q-u, joining data in one single array at the end of averaging"
-                    l_stokes= {}                    
-                    l_stokes['L']= l_spectrum[:l_chx['backend']['bins']]
-                    l_stokes['R']= l_spectrum[l_chx['backend']['bins']: 2* l_chx['backend']['bins']]
-                    l_stokes['Q']= l_spectrum[2* l_chx['backend']['bins']: 3* l_chx['backend']['bins']]
-                    l_stokes['U']= l_spectrum[-l_chx['backend']['bins']:]                                    
-                    for pol in l_stokes.keys():
-                        l_stokes[pol]= np.mean(l_stokes[pol], axis= 0)                        
-                    l_spectrum= np.concatenate((l_stokes['L'], l_stokes['R'], l_stokes['Q'], l_stokes['U']))
-                else:
-                    " power spectrum "
-                    l_spectrum= np.mean(l_spectrum, axis= 0)
+                    " stokes l-r-q-u, joining data in one single array after averaging "
+                    if l_ch == 'ch0':
+                        l_stokes['L']= l_spectrum
+                    if l_ch == 'ch1':
+                        l_stokes['R']= l_spectrum
+                    if l_ch == 'ch2':
+                        l_stokes['Q']= l_spectrum
+                    if l_ch == 'ch3':
+                        l_stokes['U']= l_spectrum
                 l_integration *= l_chx['backend']['integration_time']
                 l_intDataList= [l_coord_time, l_coord_time_mjd, l_weather, l_coord_ra, l_coord_dec,
                                 l_coord_az, l_coord_el, l_spectrum, l_integration]
-                l_intDataDict= dict(zip(l_processedDictKeys,l_intDataList))                            
+                l_intDataDict= dict(zip(l_processedDictKeys,l_intDataList))
+                " Adding stokes  data dict"
+                if l_chx['backend']['data_type'] == 'stokes':
+                    l_intDataDict['stokes']= l_stokes
+                " Creating integrated data repr. "
                 self.m_processedRepr[l_ch]= {}
                 self.m_processedRepr[l_ch]['integrated_data']= \
                     l_intDataDict.copy()
                 self.m_inputRepr[l_feed][l_ch]['integrated_data']= \
                     l_intDataDict.copy()
+                
         return self.m_processedRepr
         
     def dump(self):

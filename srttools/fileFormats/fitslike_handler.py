@@ -267,22 +267,17 @@ class Fitslike_handler():
                 self.m_summary= l_subscan
                 self.m_logger.info("summary.fits excluded from on off cal")
                 continue
-            " raggruppo le scan non summary.fits "     
-            for l_feed in l_subscan:      
+            " raggruppo le scan non summary.fits "
+            for l_feed in l_subscan:
                 #pdb.set_trace()
                 for l_chx in l_subscan[l_feed]:
-                    if 'ch_' not in l_chx:                                     
+                    if 'ch_' not in l_chx:
                         continue
-                    if self.m_scanType == 'on_off' or self.m_scanType == 'nod':
-                        """                    
-                        on_data = table[~cal_on & onsource]
-                        off_data = table[~cal_on & ~onsource]
-                        calon_data = table[cal_on & onsource]
-                        caloff_data = table[cal_on & ~onsource]
-                        """ 
-                        l_feed= l_subscan[l_feed][l_chx]['frontend']['feed']                                                                      
-                        l_isCal= _is_cal(l_subscan[l_feed][l_chx])
-                        l_isOn= _is_on(l_subscan[l_feed][l_chx])                
+                    l_chObj= l_subscan[l_feed][l_chx]
+                    if self.m_scanType == 'on_off' or self.m_scanType == 'nod':        
+                        l_feed= l_chObj['frontend']['feed']                                                                      
+                        l_isCal= _is_cal(l_chObj)
+                        l_isOn= _is_on(l_chObj)  
                         " list per feed ch_x setup "
                         l_onOffdict= {
                             'on':[], 'off':[],'cal_on':[], 'cal_off':[]
@@ -291,28 +286,49 @@ class Fitslike_handler():
                             if l_feed not in self.m_group_on_off_cal.keys():
                                 self.m_group_on_off_cal[l_feed]={}
                             if l_chx not in self.m_group_on_off_cal[l_feed].keys():
-                                self.m_group_on_off_cal[l_feed][l_chx]=l_onOffdict                            
+                                self.m_group_on_off_cal[l_feed][l_chx]=l_onOffdict                         
                         except KeyError as e:                            
                             self.m_logger.error("key error: " + str(e))
                             continue
-                                                
+                        " @todo non mi piace cosi, dovrei prima raggruppare i ch_x per stokes poi eseguire le suddivisioni on off"
                         " Grouping feed sub scans on of cal on off"
-                        if l_isOn and not l_isCal:                            
-                            self.m_group_on_off_cal[l_feed][l_chx]['on'].append(l_subscan[l_feed][l_chx])           
+                        if l_isOn and not l_isCal: # ON group         
+                            " if stokes, join ch_x on same ch_0 loosing other infos but spectral data from pol. "                                                                                    
+                            if l_chObj['backend']['data_type'] == 'stokes' and  '_0' not in l_chx:                                
+                                #pdb.set_trace()
+                                dest= self.m_group_on_off_cal[l_feed]['ch_0']['on'][-1]['integrated_data']['spectrum']
+                                src= l_subscan[l_feed][l_chx]['integrated_data']['spectrum']
+                                dest= np.append(dest, src)                                                          
+                            else:                            
+                                self.m_group_on_off_cal[l_feed][l_chx]['on'].append(l_subscan[l_feed][l_chx])           
                             self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx + ' is on ')
-                        elif not l_isOn and not l_isCal:                        
-                            self.m_group_on_off_cal[l_feed][l_chx]['off'].append(l_subscan[l_feed][l_chx])
+                        elif not l_isOn and not l_isCal:  # OFF group 
+                            if l_chObj['backend']['data_type'] == 'stokes' and '_0' not in l_chx:
+                                dest= self.m_group_on_off_cal[l_feed]['ch_0']['off'][-1]['integrated_data']['spectrum']
+                                src= l_subscan[l_feed][l_chx]['integrated_data']['spectrum']
+                                dest= np.append(dest, src)                             
+                            else:                            
+                                self.m_group_on_off_cal[l_feed][l_chx]['off'].append(l_subscan[l_feed][l_chx])
                             self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx +  ' is off ')
-                        elif l_isOn and  l_isCal:
-                            self.m_group_on_off_cal[l_feed][l_chx]['cal_on'].append(l_subscan[l_feed][l_chx])
+                        elif l_isOn and  l_isCal: # CAL ON group
+                            if l_chObj['backend']['data_type'] == 'stokes' and '_0' not in l_chx:
+                                dest= self.m_group_on_off_cal[l_feed]['ch_0']['cal_on'][-1]['integrated_data']['spectrum']
+                                src= l_subscan[l_feed][l_chx]['integrated_data']['spectrum']
+                                dest= np.append(dest, src)         
+                            else:
+                                self.m_group_on_off_cal[l_feed][l_chx]['cal_on'].append(l_subscan[l_feed][l_chx])
                             self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx + ' is cal_on ')
-                        elif not l_isOn and  l_isCal:
-                            self.m_group_on_off_cal[l_feed][l_chx]['cal_off'].append(l_subscan[l_feed][l_chx])                                            
-                            self.m_logger.info('feed ' + str(l_feed)+ ' ' + l_chx + ' is cal off ')
+                        elif not l_isOn and  l_isCal: # CAL OFF group
+                            if l_chObj['backend']['data_type'] == 'stokes' and '_0' not in l_chx:
+                                dest= self.m_group_on_off_cal[l_feed]['ch_0']['cal_off'][-1]['integrated_data']['spectrum']
+                                src= l_subscan[l_feed][l_chx]['integrated_data']['spectrum']
+                                dest= np.append(dest, src)         
+                            else:                            
+                                self.m_group_on_off_cal[l_feed][l_chx]['cal_off'].append(l_subscan[l_feed][l_chx])                                            
+                            self.m_logger.info('feed ' + str(l_feed)+ ' ' + l_chx + ' is cal off ')                        
                     if self.m_scanType == 'map':
                         " @todo on off in caso di mappe "
                         pass
-                    
     
     def normalize(self):
         """                
@@ -348,7 +364,11 @@ class Fitslike_handler():
         for l_feed in self.m_group_on_off_cal.keys():
             for ch in self.m_group_on_off_cal[l_feed].keys():
                 l_group= self.m_group_on_off_cal[l_feed][ch]        
-                l_calMarkTemp= l_group['on'][0]['frontend']['cal_mark_temp']                         
+                try:
+                    l_calMarkTemp= l_group['on'][0]['frontend']['cal_mark_temp']                         
+                except:
+                    self.m_logger.warning("[{}][{}]['on'] is empty (if stokes no worries)".format(l_feed,ch))
+                    continue
                 #l_offAvg= sum(v['integrated_data']['spectrum'] for v in l_group['off']) / len(l_group['off'])
                 #l_offAvg= np.mean( l_group['off'], axis= 0)
                 " Avg off "
@@ -387,13 +407,13 @@ class Fitslike_handler():
                     cal = cal[good]                
                     if len(cal) > 0:
                         meancal = np.median(cal) if len(cal) > 30 else np.mean(cal)    
-                        calibration_factor = 1 / meancal * l_calMarkTemp                                        
+                        calibration_factor = 1 / meancal * l_calMarkTemp                  
                     else:   
                         return None, ""
                     " Calibrated spectrum added to chx"                            
                     for elOn in l_group['on']:                
                         elOn['integrated_data']['calibrated'] = elOn['integrated_data']['spectrum_on_off'] * \
-                                            calibration_factor                    
+                                            calibration_factor
                 except Exception as e:
                     self.m_no_cal= True
                     self.m_logger.error("Cannot apply calibration to this data set")
@@ -449,9 +469,9 @@ class Fitslike_handler():
         " @todo inserire il campo cal is on ? quindi diversificare on ed off ?"      
         " @todo gestire i dati in caso di campo singolo spettro mediato o serie di spettri"        
         for l_feed in self.m_group_on_off_cal:        
-            for l_chx in self.m_group_on_off_cal[l_feed]:              
+            for l_chx in self.m_group_on_off_cal[l_feed]:                    
                 " single entry on classfits table "
-                for l_ch in self.m_group_on_off_cal[l_feed][l_chx][p_wichGroup]:
+                for l_ch in self.m_group_on_off_cal[l_feed][l_chx][p_wichGroup]:                                  
                     #pdb.set_trace()
                     " Generic observation data copy to dedicated dict, more copies "
                     " below during calculations "
@@ -500,11 +520,11 @@ class Fitslike_handler():
                         l_ch['classfits']['OBSTIME']= l_ch['integrated_data']['data_integration']
                         "  "
                         l_ch['classfits']['CDELT1']= (l_ch['frontend']['bandwidth'] / 
-                                                    l_ch['backend']['bins']).to('Hz')         
+                                                    l_ch['backend']['bins']).to('Hz')
                         " freq and velocity "                    
                         l_ch['classfits']['RESTFREQ']= self.m_summary['summary']['restfreq'].to(unit.Hz).value                                                
                         self.m_obs_general_data['restfreq']= l_ch['classfits']['RESTFREQ']                              
-                        l_ch['classfits']['VELOCITY']= l_ch['scheduled']['vlsr'].to("m/s").value                              
+                        l_ch['classfits']['VELOCITY']= l_ch['scheduled']['vlsr'].to("m/s").value
                         l_df= (l_ch['backend']['bandwidth'] / l_ch['backend']['bins']).to('Hz')
                         l_ch['classfits']['CDELT1']= l_df.value
                         self.m_obs_general_data['cdelt1']= l_ch['classfits']['CDELT1']
@@ -523,6 +543,7 @@ class Fitslike_handler():
                         l_ch['classfits']['OBSTIME'] = l_ch['integrated_data']['data_integration']    
                         l_ch['classfits']['MAXIS1'] = l_ch['backend']['bins']
                         self.m_obs_general_data['maxis1']= l_ch['classfits']['MAXIS1']
+                        " calibration might be not present "
                         try:
                             l_ch['classfits']['SPECTRUM_CAL']= l_ch['integrated_data']['calibrated']                            
                         except Exception as e:
@@ -534,7 +555,7 @@ class Fitslike_handler():
                         traceback.print_exc()
                         self.m_logger.error("Error preparing class data: " +str(e))
                     
-            
+                        
     def classfitsWrite(self, p_group, p_on_what):
         """
         Scrittura file con calcolo header
