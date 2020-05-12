@@ -123,6 +123,7 @@ class Fitslike():
                 l_coord_az= np.mean(l_coord_az, axis= 0)
                 l_coord_el= np.mean(l_coord_el, axis= 0)    
                 l_spectrum= np.mean(l_spectrum, axis= 0)                                    
+                """
                 if l_chx['backend']['data_type'] == 'stokes':
                     " stokes l-r-q-u, joining data in one single array after averaging "
                     if l_ch == 'ch0':
@@ -133,6 +134,7 @@ class Fitslike():
                         l_stokes['Q']= l_spectrum
                     if l_ch == 'ch3':
                         l_stokes['U']= l_spectrum
+                """
                 l_integration *= l_chx['backend']['integration_time']
                 l_intDataList= [l_coord_time, l_coord_time_mjd, l_weather, l_coord_ra, l_coord_dec,
                                 l_coord_az, l_coord_el, l_spectrum, l_integration]

@@ -290,41 +290,19 @@ class Fitslike_handler():
                         except KeyError as e:                            
                             self.m_logger.error("key error: " + str(e))
                             continue
-                        " @todo non mi piace cosi, dovrei prima raggruppare i ch_x per stokes poi eseguire le suddivisioni on off"
+                        
                         " Grouping feed sub scans on of cal on off"
-                        if l_isOn and not l_isCal: # ON group         
-                            " if stokes, join ch_x on same ch_0 loosing other infos but spectral data from pol. "                                                                                    
-                            if l_chObj['backend']['data_type'] == 'stokes' and  '_0' not in l_chx:                                
-                                #pdb.set_trace()
-                                dest= self.m_group_on_off_cal[l_feed]['ch_0']['on'][-1]['integrated_data']['spectrum']
-                                src= l_subscan[l_feed][l_chx]['integrated_data']['spectrum']
-                                dest= np.append(dest, src)                                                          
-                            else:                            
-                                self.m_group_on_off_cal[l_feed][l_chx]['on'].append(l_subscan[l_feed][l_chx])           
+                        if l_isOn and not l_isCal: # ON group                                 
+                            self.m_group_on_off_cal[l_feed][l_chx]['on'].append(l_subscan[l_feed][l_chx])           
                             self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx + ' is on ')
                         elif not l_isOn and not l_isCal:  # OFF group 
-                            if l_chObj['backend']['data_type'] == 'stokes' and '_0' not in l_chx:
-                                dest= self.m_group_on_off_cal[l_feed]['ch_0']['off'][-1]['integrated_data']['spectrum']
-                                src= l_subscan[l_feed][l_chx]['integrated_data']['spectrum']
-                                dest= np.append(dest, src)                             
-                            else:                            
-                                self.m_group_on_off_cal[l_feed][l_chx]['off'].append(l_subscan[l_feed][l_chx])
+                            self.m_group_on_off_cal[l_feed][l_chx]['off'].append(l_subscan[l_feed][l_chx])
                             self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx +  ' is off ')
                         elif l_isOn and  l_isCal: # CAL ON group
-                            if l_chObj['backend']['data_type'] == 'stokes' and '_0' not in l_chx:
-                                dest= self.m_group_on_off_cal[l_feed]['ch_0']['cal_on'][-1]['integrated_data']['spectrum']
-                                src= l_subscan[l_feed][l_chx]['integrated_data']['spectrum']
-                                dest= np.append(dest, src)         
-                            else:
-                                self.m_group_on_off_cal[l_feed][l_chx]['cal_on'].append(l_subscan[l_feed][l_chx])
+                            self.m_group_on_off_cal[l_feed][l_chx]['cal_on'].append(l_subscan[l_feed][l_chx])
                             self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx + ' is cal_on ')
                         elif not l_isOn and  l_isCal: # CAL OFF group
-                            if l_chObj['backend']['data_type'] == 'stokes' and '_0' not in l_chx:
-                                dest= self.m_group_on_off_cal[l_feed]['ch_0']['cal_off'][-1]['integrated_data']['spectrum']
-                                src= l_subscan[l_feed][l_chx]['integrated_data']['spectrum']
-                                dest= np.append(dest, src)         
-                            else:                            
-                                self.m_group_on_off_cal[l_feed][l_chx]['cal_off'].append(l_subscan[l_feed][l_chx])                                            
+                            self.m_group_on_off_cal[l_feed][l_chx]['cal_off'].append(l_subscan[l_feed][l_chx])                                            
                             self.m_logger.info('feed ' + str(l_feed)+ ' ' + l_chx + ' is cal off ')                        
                     if self.m_scanType == 'map':
                         " @todo on off in caso di mappe "
