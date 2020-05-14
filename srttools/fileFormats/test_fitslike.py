@@ -37,13 +37,11 @@ class TestFitsLike_arch():
     def test_Awareness_fitszilla_parse(p_file):
         """Parse a fitszilla through Awarness_fitszilla"""
         l_fits = fits.open(p_file)        
-        l_aware = awarness_fitszilla.Awarness_fitszilla(l_fits)        
+        l_aware = awarness_fitszilla.Awarness_fitszilla(l_fits, p_file)        
         l_intermediateDict = l_aware.parse()
         l_processedDict = l_aware.process() 
-        pdb.set_trace()
-        l_fitsLike = fitslike.Fitslike(l_processedDict)
-        pdb.set_trace()
-        l_fitsLike_intData = l_fitsLike.data_channel_integration()
+        #pdb.set_trace()
+        l_fitsLike = fitslike.Fitslike(l_processedDict)        
         pdb.set_trace()          
 
 if __name__ == "__main__":

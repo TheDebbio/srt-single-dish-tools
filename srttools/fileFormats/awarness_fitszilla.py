@@ -7,6 +7,7 @@ from astropy.coordinates import EarthLocation, AltAz, Angle, ICRS
 import astropy.io.fits as fits
 import astropy.units as unit
 from astropy.time import Time
+from astropy.table import  QTable, vstack, Column
 import numpy as np
 import copy
 import fitslike_keywords
@@ -27,6 +28,9 @@ class Awarness_fitszilla():
         ----------
         l_fitszilla : astropy fits
         Fitszilla to be handled before it gets represented as fitslike
+
+        p_path: string
+        path of opened fits
 
         Returns
         -------
@@ -147,7 +151,8 @@ class Awarness_fitszilla():
             self._process_observation()
             self._process_spectrum()
             self._process_coordinates()
-            self._process_extras()      
+            self._process_extras()     
+            self._group_data_and_coords()             
         return self.m_processedRepr
             
     def _process_summary(self):
@@ -290,7 +295,7 @@ class Awarness_fitszilla():
                         self.m_intermediate['fe_frequency'],
                         self.m_intermediate['fe_bandwidth'],
                         self.m_intermediate['fe_local_oscillator'],
-                        self.m_intermediate['fe_cal_mark_temp'],                    
+                        self.m_intermediate['fe_cal_mark_temp'],
                         )     
         except Exception as e:
             self.m_logger.error("frontend end zip error: " +str(e))
@@ -302,24 +307,28 @@ class Awarness_fitszilla():
             # Adding units
             _add_unit_to_fe(l_feDict)
             l_frontEnds[l_feDict['be_id']]= l_feDict.copy()
-        " Pre check backend columns "
-        if self.m_intermediate['be_frequency']== None:
-            self.m_intermediate['be_frequency'] = [None] * len(self.m_intermediate['be_id'])            
-        if self.m_intermediate['be_bandwidth']== None:
-            self.m_intermediate['be_bandwidth'] = [None] * len(self.m_intermediate['be_id'])
-        else:
-            self.m_intermediate['be_bandwidth']= self.m_intermediate['be_bandwidth'] * unit.Unit("MHz")
+        """ Pre check backend columns, old MED backend sw lacks of this 2 columns on on section table 
+           We got bw and freq from rf input table, freq is first spectrum channel if freq and in this case
+           needs to be calculated from sky frep and lo
+         """        
+        if not isinstance(self.m_intermediate['be_frequency'], list):
+            self.m_intermediate['be_frequency'] =  self.m_intermediate['fe_frequency'] \
+                                                - self.m_intermediate['fe_local_oscillator']
+        if not isinstance(self.m_intermediate['be_bandwidth'], list):
+            self.m_intermediate['be_bandwidth'] = self.m_intermediate['fe_bandwidth']
+        
+                
         #  zip backend
         l_backEnds= {}                        
         l_zipBackend= {}
         try:
             l_zipBackend= zip(
                         self.m_intermediate['be_id'],
-                        self.m_intermediate['be_bins'] ,
+                        self.m_intermediate['be_bins'],
                         self.m_intermediate['be_sample_rate'],
                         self.m_intermediate['be_bandwidth'],
-                        self.m_intermediate['be_frequency'], 
-                        self.m_intermediate['be_data_type'],                       
+                        self.m_intermediate['be_frequency'],
+                        self.m_intermediate['be_data_type']                     
                         )
         except Exception as e:
             self.m_logger.error("back end zip error: " +str(e))            
@@ -336,11 +345,13 @@ class Awarness_fitszilla():
             l_innerDict['backend']= l_backEnds[l_elBe]
             l_innerDict['frontend']= l_frontEnds[l_elBe]
             l_innerDict['spectrum']= {}            
+            " flag cal data separation before integration "
+            l_innerDict['spectrum']['data']={}
             l_innerDict['spectrum']['data']= np.asarray(
                     self.m_intermediate['ch'+str(l_elBe)]
                     )
             l_innerDict['spectrum']['flag_cal']= np.asarray(self.m_intermediate['data_flag_cal'])                    
-            l_feed= l_innerDict['frontend']['feed']
+            l_feed= l_innerDict['frontend']['feed']            
             " Grouping by feed: ch_x"
             if l_feed not in self.m_processedRepr.keys():
                 self.m_processedRepr[l_feed]={}                
@@ -404,9 +415,7 @@ class Awarness_fitszilla():
             l_angle_range= np.arange(1, 0, -1/l_num_lat_feeds)
             l_rest_angle_def = l_angle_range * 2 * np.pi * unit.rad
             l_w0= np.where((l_npXOffsets[1:] > 0) & (l_npYOffsets[1:] == 0.))[0][0]
-            return np.concatenate(([0],
-                               np.roll(l_rest_angle_def.to(unit.rad).value,
-                                       l_w0))) * unit.rad
+            return np.concatenate(([0], np.roll(l_rest_angle_def.to(unit.rad).value, l_w0))) * unit.rad
     
         def _coordinates_observing_angle(p_rest_angle, p_derot_angle):
             """
@@ -578,7 +587,7 @@ class Awarness_fitszilla():
                     l_chx = self.m_processedRepr[feed][chx]
                     if l_chx['frontend']['feed'] == l_feed:
                         l_chx['coordinates']= l_feedCoord.copy()
-        
+     
     def _process_extras(self):
         """
         Extra data processing
@@ -587,14 +596,96 @@ class Awarness_fitszilla():
         for feed in self.m_processedRepr.keys():
             for chx in self.m_processedRepr[feed]:
                 l_chx = self.m_processedRepr[feed][chx]
-                l_chx['extras']= {}         
+                l_chx['extras']= {}
                 " weather "
-                l_weather= self.m_intermediate['ex_weather']                                
+                l_weather= self.m_intermediate['ex_weather']
                 l_chx['extras']['weather']= []
                 for el in l_weather:
                     l_chx['extras']['weather'].append(\
-                        self.m_commons.calculate_weather(el[1] + 273.15, el[0]))                    
-            
+                        self.m_commons.calculate_weather(el[1] + 273.15, el[0]))
+        
+    def _group_data_and_coords(self):
+        """
+        Groups data table entry data, those data are composed by multiple entries
+        that needs to be reduced / group for example by flag_cal     
+        Grouped data are arranged similarly to fitszilla data table row entries
+        After grouping data by flag cal spectrum data field is deleted
+        
+        Applying stokes differentiation 
+        Adding polarization infos        
+        
+        At the end of operation data table has integrated data and grouped table
+        
+        @todo Attennzione che non riesco ad aggregare la tabella se inserisco i dati cone unit !!
+        """
+        for feed in self.m_processedRepr.keys():
+                for chx in self.m_processedRepr[feed]:
+                    l_chx= self.m_processedRepr[feed][chx]                    
+                    l_coo= l_chx['coordinates']
+                    l_spec= l_chx['spectrum']                                       
+                    if l_chx['backend']['data_type']== 'stokes':
+                        " split stokes, repeating data "
+                        data= l_spec['data']
+                        l_bins= l_chx['backend']['bins']                        
+                        L= (data[:,:l_bins], "LL")
+                        R= (data[:, l_bins: 2*l_bins], "RR")
+                        Q= (data[:, 2*l_bins: 3*l_bins],"LR")
+                        U= (data[:, -l_bins: ], "RL")
+                        l_tGroup=[]
+                        for pol in L, R, Q, U:                                            
+                            l_keys= [l_coo["data_time"], pol[1], l_coo["data_az"],
+                                     l_coo["data_el"],l_coo["data_derot_angle"],l_coo["data_ra"],
+                                     l_coo["data_dec"], l_chx['extras']['weather'], pol[0],
+                                     l_spec["flag_cal"]]
+                            l_names= ["data_time", "pol", "data_az",
+                                    "data_el", "data_derot_anngle", "data_ra",
+                                    "data_dec", "weather", "data", "flag_cal"]
+                            l_table= QTable(l_keys, names= l_names)
+                            l_tGroup.append(l_table)
+                        " group and aggregation "
+                        l_oneTable= vstack(l_tGroup)
+                        l_oneTable= l_oneTable.group_by(['pol', 'flag_cal'])
+                        l_oneTableAggregated= l_oneTable.groups.aggregate(np.mean)
+                        l_chx['groups']= l_oneTableAggregated
+                    else: # spectrum or single pol
+                        " manage pwr spectrum "
+                        l_oneTable = QTable()
+                        l_shape= l_coo["time_mjd"].shape
+                        l_pol= l_chx['frontend']['polarizations']                                        
+                        l_polShaped= np.full(l_shape, l_pol)                        
+                        l_keys= [l_coo["data_time"],l_polShaped,l_coo["data_az"],
+                                 l_coo["data_el"],l_coo["data_derot_angle"], l_coo["data_ra"],
+                                 l_coo["data_dec"], l_chx['extras']['weather'], l_spec['data'],
+                                 l_spec["flag_cal"]]
+                        l_names= ["data_time_mjd", "pol", "data_az",
+                                "data_el", "data_derot_anngle", "data_ra",
+                                "data_dec_rad", "weather", "data", "flag_cal"]
+                        for n, v in zip(l_names, l_keys):
+                            " If i have no quantity but i have a scalar .."
+                            try:                                
+                                name_unit= n +"_u_" + str(v.unit)
+                                col=  Column(v.value, name= name_unit )
+                            except:                                                    
+                                col=  Column(v, name= n )
+                            l_oneTable.add_column(col)  
+                        " group and aggregate "
+                        l_oneTable= l_oneTable.group_by(['pol','flag_cal'])                        
+                        print(l_oneTable)
+                        l_oneTableAggregated= l_oneTable.groups.aggregate(np.mean)
+                        l_chx['groups']= l_oneTableAggregated
+                    
+                    " remove data already present in groups "                        
+                    del l_coo["time_mjd"]
+                    del l_coo["data_time"]
+                    del l_coo["data_az"]
+                    del l_coo["data_el"]
+                    del l_coo["data_derot_angle"]
+                    del l_coo["data_ra"]
+                    del l_coo["data_dec"]
+                    del l_chx['extras']['weather']
+                    del l_spec["data"]
+                    del l_spec["flag_cal"]                     
+                                
     def _errorFromMissingKeyword(self, p_section, p_key):
         """
         Set  error for process upon missing keyws from fitszilla
@@ -615,4 +706,4 @@ class Awarness_fitszilla():
         if p_key in l_mandatory[p_section]:
             self.m_errors.append("key error: {}:{}".format(p_section, p_key))
             
-            
+    

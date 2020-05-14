@@ -94,14 +94,15 @@ class Fitslike():
         
         Averaged az, el, ra, dec
 
-        """
-        "todo diversificare spettri da stokes"
+        """    
         l_processedDictKeys = ["data_time", "data_mjd", "weather", "data_ra", "data_dec",
                                "data_az", "data_el", "spectrum", "data_integration"]         
         for l_feed in self.m_inputRepr.keys(): 
             l_stokes= {}
             for l_ch in self.m_inputRepr[l_feed].keys():                              
                 l_chx= self.m_inputRepr[l_feed][l_ch]               
+                " group by flag_cal first, integrate on this groups "
+                print(str(l_chx))                
                 try:
                     l_coord_time= l_chx['coordinates']['data_time'] 
                     l_coord_time_mjd= l_chx['coordinates']['time_mjd']
@@ -121,20 +122,11 @@ class Fitslike():
                 l_coord_ra= np.mean(l_coord_ra, axis= 0)
                 l_coord_dec= np.mean(l_coord_dec, axis= 0)
                 l_coord_az= np.mean(l_coord_az, axis= 0)
-                l_coord_el= np.mean(l_coord_el, axis= 0)    
-                l_spectrum= np.mean(l_spectrum, axis= 0)                                    
-                """
-                if l_chx['backend']['data_type'] == 'stokes':
-                    " stokes l-r-q-u, joining data in one single array after averaging "
-                    if l_ch == 'ch0':
-                        l_stokes['L']= l_spectrum
-                    if l_ch == 'ch1':
-                        l_stokes['R']= l_spectrum
-                    if l_ch == 'ch2':
-                        l_stokes['Q']= l_spectrum
-                    if l_ch == 'ch3':
-                        l_stokes['U']= l_spectrum
-                """
+                l_coord_el= np.mean(l_coord_el, axis= 0)
+                if l_chx['backend']['data_type']== 'stokes':
+                    ""
+                elif l_chx['backend']['data_type']== 'spectrum':
+                    l_spectrum= np.mean(l_spectrum, axis= 0)                
                 l_integration *= l_chx['backend']['integration_time']
                 l_intDataList= [l_coord_time, l_coord_time_mjd, l_weather, l_coord_ra, l_coord_dec,
                                 l_coord_az, l_coord_el, l_spectrum, l_integration]

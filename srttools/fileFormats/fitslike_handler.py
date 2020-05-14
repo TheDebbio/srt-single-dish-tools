@@ -7,6 +7,7 @@ from astropy.io import fits
 from collections.abc import Iterable
 import numpy as np
 import astropy.units as unit
+from astropy.table import QTable, vstack
 from astropy.time import Time
 import astropy.constants as const
 import fitslike_commons
@@ -49,9 +50,7 @@ def _envelope_subscan(p_logger, p_ftype, p_path):
         l_repr= l_aware.process()
         l_errors= l_aware.getErrorList()
         l_fits.close()
-        l_fitslike= fitslike.Fitslike(l_repr)       
-        if not l_fitslike.is_summary():
-            l_fitslike.data_channel_integration()               
+        l_fitslike= fitslike.Fitslike(l_repr)                    
         l_aware = None
         l_fits =None                  
         l_repr= l_fitslike.get_inputRepr()          
@@ -202,28 +201,26 @@ class Fitslike_handler():
         but generally per feed
         """
         
-        def _is_cal(p_subScan):
+        def _getGroupPol(p_group):
+            """ Get Polarization flag """
+            return p_group['pol']
+        
+        def _is_cal(p_group):
             """
             Genera il flag calibrazione attiva
 
             Parameters
             ----------
-            p_sub : dict
-                subscan ch_x
+            p_sub : astropy table group 
+                group with flag_cal
 
             Returns
             -------
             true calibrazione attiva
 
-            """            
-            l_signal= p_subScan['scheduled']['signal']
-            l_flagCal= p_subScan['spectrum']['flag_cal']            
-            if l_signal in kws['keys_cal_on']:
-                return True
-                " @todo keyword subtype ? "
-                " Controllar anche flag_cal any"
-            elif np.any(l_flagCal):
-                return True
+            """                        
+            if p_group['flag_cal'] > 0: 
+                return True            
             return False
         
         def _is_on(p_subScan):
@@ -269,56 +266,87 @@ class Fitslike_handler():
                 continue
             " raggruppo le scan non summary.fits "
             for l_feed in l_subscan:
+                " prepare on off group keys hirearchy "
+                if l_feed not in self.m_group_on_off_cal.keys():
+                    self.m_group_on_off_cal[l_feed]={}                            
                 #pdb.set_trace()
+                " Section (l_chx) navigation "
                 for l_chx in l_subscan[l_feed]:
                     if 'ch_' not in l_chx:
                         continue
                     l_chObj= l_subscan[l_feed][l_chx]
-                    if self.m_scanType == 'on_off' or self.m_scanType == 'nod':        
-                        l_feed= l_chObj['frontend']['feed']                                                                      
-                        l_isCal= _is_cal(l_chObj)
-                        l_isOn= _is_on(l_chObj)  
-                        " list per feed ch_x setup "
-                        l_onOffdict= {
-                            'on':[], 'off':[],'cal_on':[], 'cal_off':[]
-                            }
-                        try:
-                            if l_feed not in self.m_group_on_off_cal.keys():
-                                self.m_group_on_off_cal[l_feed]={}
-                            if l_chx not in self.m_group_on_off_cal[l_feed].keys():
-                                self.m_group_on_off_cal[l_feed][l_chx]=l_onOffdict                         
-                        except KeyError as e:                            
-                            self.m_logger.error("key error: " + str(e))
-                            continue
+                    " on off group keys hirearchy "
+                    if l_chx not in self.m_group_on_off_cal[l_feed].keys():
+                        self.m_group_on_off_cal[l_feed][l_chx]= {}
+                    " subscan type [not a map] "
+                    if self.m_scanType == 'on_off' or self.m_scanType == 'nod':                                
+                        l_feed= l_chObj['frontend']['feed']
+                        """ split by polarization so we have
+                            subscan - feed - ch_x(section) - pol ( L R Q U )                            
+                            pol navigation 
+                        """
+                        for group in l_chObj['groups']:
+                            " list per feed ch_x setup "
+                            l_onOffdict= {
+                                'on': QTable(), 'off':QTable(),'cal_on':QTable(), 'cal_off':QTable()
+                                }
+                            " scanning joined table group "
+                            " cal on off for table group  "
+                            l_isCal= _is_cal(group)
+                            l_isOn= _is_on(l_chObj)
+                            l_pol= _getGroupPol(group)
+                            " on off group keys hirearchy "
+                            if l_chx not in self.m_group_on_off_cal[l_feed][l_chx].keys():
+                                self.m_group_on_off_cal[l_feed][l_chx][l_pol]= l_onOffdict
+                            " Grouping feed sub scans on off cal on off "
+                            if l_isOn and not l_isCal: # ON group
+                                l_on= self.m_group_on_off_cal[l_feed][l_chx][l_pol]['on']
+                                l_on= vstack([l_on, group])
+                                self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx + ' is on ')
+                            elif not l_isOn and not l_isCal:  # OFF group
+                                l_off= self.m_group_on_off_cal[l_feed][l_chx][l_pol]['off']
+                                l_off= vstack([l_off, group])
+                            elif l_isOn and  l_isCal: # CAL ON group
+                                l_calon= self.m_group_on_off_cal[l_feed][l_chx][l_pol]['cal_on']
+                                l_calon= vstack([l_calon, group])
+                            elif not l_isOn and  l_isCal: # CAL OFF group
+                                l_caloff= self.m_group_on_off_cal[l_feed][l_chx][l_pol]['cal_off']
+                                l_caloff= vstack([l_caloff, group])
+                    " Aggregate data for section and pol, repeat for every section "                    
+                    for l_pol in self.m_group_on_off_cal[l_feed][l_chx].keys:
+                        " for every pol in this feed- section "
+                        " on "
+                        l_on= self.m_group_on_off_cal[l_feed][l_chx][l_pol]['on']
+                        self.m_group_on_off_cal[l_feed][l_chx][l_pol]['on']= \
+                            l_on.group_by(['pol']).groups.aggregate(np.mean)
+                        " off "
+                        l_off= self.m_group_on_off_cal[l_feed][l_chx][l_pol]['off']
+                        self.m_group_on_off_cal[l_feed][l_chx][l_pol]['off']= \
+                            l_off.group_by(['pol']).groups.aggregate(np.mean)
+                        " cal on "
+                        l_calOn= self.m_group_on_off_cal[l_feed][l_chx][l_pol]['cal_on']
+                        self.m_group_on_off_cal[l_feed][l_chx][l_pol]['cal_on']= \
+                            l_calOn.group_by(['pol']).groups.aggregate(np.mean)
+                        " cal on "
+                        l_calOff= self.m_group_on_off_cal[l_feed][l_chx][l_pol]['cal_off']
+                        self.m_group_on_off_cal[l_feed][l_chx][l_pol]['cal_off']= \
+                            l_calOff.group_by(['pol']).groups.aggregate(np.mean)
                         
-                        " Grouping feed sub scans on of cal on off"
-                        if l_isOn and not l_isCal: # ON group                                 
-                            self.m_group_on_off_cal[l_feed][l_chx]['on'].append(l_subscan[l_feed][l_chx])           
-                            self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx + ' is on ')
-                        elif not l_isOn and not l_isCal:  # OFF group 
-                            self.m_group_on_off_cal[l_feed][l_chx]['off'].append(l_subscan[l_feed][l_chx])
-                            self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx +  ' is off ')
-                        elif l_isOn and  l_isCal: # CAL ON group
-                            self.m_group_on_off_cal[l_feed][l_chx]['cal_on'].append(l_subscan[l_feed][l_chx])
-                            self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx + ' is cal_on ')
-                        elif not l_isOn and  l_isCal: # CAL OFF group
-                            self.m_group_on_off_cal[l_feed][l_chx]['cal_off'].append(l_subscan[l_feed][l_chx])                                            
-                            self.m_logger.info('feed ' + str(l_feed)+ ' ' + l_chx + ' is cal off ')                        
-                    if self.m_scanType == 'map':
-                        " @todo on off in caso di mappe "
-                        pass
+                if self.m_scanType == 'map':
+                    " @todo on off in caso di mappe "
+                    pass 
+                
+                        
     
     def normalize(self):
         """                
         On - Off - Cal normalize 
         
         cal on off, off , on are grouped:
-            nod, on off: left right polarization
-                group_on_off_cal['on']['0']['ch_0']=on ch_0
-                group_on_off_cal['on']['0']['ch_1']=on ch_1
-                and so on
+            nod, on off: 
+                subscan - feed - pol - : on off calon caloff  [astropy table group]
             map : ?
-            
+                 
         In general terms calculations resemble the following:
             
             off, average
@@ -341,62 +369,63 @@ class Fitslike_handler():
         """         
         for l_feed in self.m_group_on_off_cal.keys():
             for ch in self.m_group_on_off_cal[l_feed].keys():
-                l_group= self.m_group_on_off_cal[l_feed][ch]        
-                try:
-                    l_calMarkTemp= l_group['on'][0]['frontend']['cal_mark_temp']                         
-                except:
-                    self.m_logger.warning("[{}][{}]['on'] is empty (if stokes no worries)".format(l_feed,ch))
-                    continue
-                #l_offAvg= sum(v['integrated_data']['spectrum'] for v in l_group['off']) / len(l_group['off'])
-                #l_offAvg= np.mean( l_group['off'], axis= 0)
-                " Avg off "
-                l_offAvgData= []
-                for el in l_group['off']:
-                    l_offAvgData.append(el['integrated_data']['spectrum'])
-                l_offAvg= np.mean(l_offAvgData, axis= 0)
-                " Avg call on"                
-                l_calOnAvg= None
-                if len(l_group['cal_on']):
-                    #l_calOnAvg= sum(v['integrated_data']['spectrum'] for v in l_group['cal_on']) / len(l_group['cal_on'])
-                    l_CalOnAvgData= []
-                    for el in l_group['cal_on']:
-                        l_CalOnAvgData.append(el['integrated_data']['spectrum'])                    
-                    l_calOnAvg= np.mean(l_CalOnAvgData, axis= 0)
-                    l_calOnAvg = (l_calOnAvg - l_offAvg) / l_offAvg
-                " Avg cal off "
-                l_calOffAvg= None
-                if len(l_group['cal_off']):
-                    #l_calOffAvg= sum(v['integrated_data']['spectrum'] for v in l_group['cal_off']) / len(l_group['cal_off'])
-                    l_CalOffAvgData= []
-                    for el in l_group['cal_off']:
-                        l_CalOffAvgData.append(el['integrated_data']['spectrum'])
-                    l_calOffAvg= np.mean(l_CalOffAvgData, axis= 0)
-                    l_calOffAvg = (l_calOffAvg - l_offAvg) / l_offAvg    
-                " On - Off " 
-                for elOn in l_group['on']:
-                    on= elOn['integrated_data']['spectrum']
-                    on_off= (on - l_offAvg)/l_offAvg
-                    elOn['integrated_data']['spectrum_on_off']= on_off
-                " Rescale with cal mark temp "                
-                cal = np.array([l_calOnAvg, l_calOffAvg])                
-                try:
-                    good = (cal != 0) & ~np.isnan(cal) & ~np.isinf(cal)
-                    pdb.set_trace()    
-                    cal = cal[good]                
-                    if len(cal) > 0:
-                        meancal = np.median(cal) if len(cal) > 30 else np.mean(cal)    
-                        calibration_factor = 1 / meancal * l_calMarkTemp                  
-                    else:   
-                        return None, ""
-                    " Calibrated spectrum added to chx"                            
-                    for elOn in l_group['on']:                
-                        elOn['integrated_data']['calibrated'] = elOn['integrated_data']['spectrum_on_off'] * \
-                                            calibration_factor
-                except Exception as e:
-                    self.m_no_cal= True
-                    self.m_logger.error("Cannot apply calibration to this data set")
-                    self.m_logger.error(str(e))
-                
+                l_section= self.m_group_on_off_cal[l_feed][ch]                        
+                for l_pol in l_section.keys():
+                    l_polarization= l_section[l_pol]
+                    " get calibration mark temperature if available "
+                    try:
+                        l_calMarkTemp= l_pol[0]['frontend']['cal_mark_temp']                         
+                    except:
+                        self.m_logger.warning("[{}][{}][{}]['on'] is empty (why?)".format(l_feed,ch,l_pol))
+                        continue
+                    " @todo portare qui le modifiche al raggruppamento delle pol con table astropy "
+                    " Avg off "
+                    l_offAvgData= []
+                    for el in l_section['off']:
+                        l_offAvgData.append(el['integrated_data']['spectrum'])
+                    l_offAvg= np.mean(l_offAvgData, axis= 0)                
+                    " Avg call on "
+                    l_calOnAvg= None
+                    if len(l_section['cal_on']):
+                        l_CalOnAvgData= []
+                        for el in l_section['cal_on']:
+                            l_CalOnAvgData.append(el['integrated_data']['spectrum'])                    
+                        l_calOnAvg= np.mean(l_CalOnAvgData, axis= 0)
+                        l_calOnAvg= (l_calOnAvg - l_offAvg) / l_offAvg
+                    " Avg cal off "
+                    l_calOffAvg= None
+                    if len(l_section['cal_off']):
+                        l_CalOffAvgData= []
+                        for el in l_section['cal_off']:
+                            l_CalOffAvgData.append(el['integrated_data']['spectrum'])
+                        l_calOffAvg= np.mean(l_CalOffAvgData, axis= 0)
+                        l_calOffAvg = (l_calOffAvg - l_offAvg) / l_offAvg    
+                    " On - Off " 
+                    for elOn in l_section['on']:
+                        on= elOn['integrated_data']['spectrum']
+                        on_off= (on - l_offAvg)/l_offAvg
+                        elOn['integrated_data']['spectrum_on_off']= on_off
+                    " Rescale with cal mark temp "
+                    " average non lienarity from receiver at differents power input levels "
+                    cal = np.array([l_calOnAvg, l_calOffAvg])
+                    try:
+                        good = (cal != 0) & ~np.isnan(cal) & ~np.isinf(cal)
+                        pdb.set_trace()
+                        cal = cal[good]
+                        if len(cal) > 0:
+                            meancal = np.median(cal) if len(cal) > 30 else np.mean(cal)
+                            calibration_factor = 1 / meancal * l_calMarkTemp
+                        else:   
+                            return None, ""
+                        " Calibrated spectrum added to chx "
+                        for elOn in l_section['on']:
+                            elOn['integrated_data']['calibrated'] = elOn['integrated_data']['spectrum_on_off'] * \
+                                                calibration_factor
+                    except Exception as e:
+                        self.m_no_cal= True
+                        self.m_logger.error("Cannot apply calibration to this data set")
+                        self.m_logger.error(str(e))
+                    
     def _on_off_match(self):                  
         """
         Look the best off for every on.
