@@ -11,13 +11,13 @@
 	 "components": {
     	"summary":{
         	"parser":{
-            	"sum_restfreq":["PRIMARY", "HEADER", "RESTFREQ1"]
+            	"sum_restfreq":["PRIMARY", "HEADER", "RESTFREQ1"],                        	
+            	"sum_backend_name": ["PRIMARY", "HEADER", "BackendName"]
         	}
     	},
 		"observation": {		
 			"parser": {
-    			"obs_receiver_code": ["PRIMARY", "HEADER", "Receiver Code"],
-    			"obs_backend_name": ["PRIMARY", "HEADER", "Backend Name"],
+    			"obs_receiver_code": ["PRIMARY", "HEADER", "Receiver Code"],    			
 				"obs_source": ["PRIMARY", "HEADER", "SOURCE"],
 				"obs_vlsr": ["PRIMARY", "HEADER", "VLSR"],
 				"obs_site": ["PRIMARY", "HEADER", "ANTENNA"],   

@@ -34,11 +34,12 @@ class TestFitslike_handler():
         print(l_outPath)
         l_fh.setOutputPath(l_outPath)
         l_fh.scan_data(input_dir)
-        l_fh.group_on_off_cal()
-        pdb.set_trace()
-        """
+        l_fh.group_on_off_cal()        
         l_fh.normalize()
-        l_fh.ClassFitsAdaptations('on',)
+        l_fh.ClassFitsAdaptations()
+        pdb.set_trace()
+        """        
+        
         l_fh.classfitsWrite('on', 'on')
         l_fh.classfitsWrite('on', 'on_off')
         l_fh.classfitsWrite('on', 'cal')

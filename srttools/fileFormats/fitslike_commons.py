@@ -169,28 +169,16 @@ class Fitslike_commons():
             raise ValueError('Unrecognized polarization')
     
     @staticmethod 
-    def class_telescope_name(p_scan):
+    def class_telescope_name(p_section, p_bk, p_pol):
         """
-        Generazione strigna telescope classfits
-        @todo da definire..tradurre con le funziona sopra
-        """ 
-        def _polarizationString(p_pol):
-            if p_pol.startswith('L'):
-                return 'LL'
-            elif p_pol.startswith('R'):
-                return 'RR'
-            elif p_pol.startswith('Q'):
-                return 'LR'
-            elif p_pol.startswith('U'):
-                return 'RL'
-            else:
-                raise ValueError('Unrecognized polarization')
-                
+        Generazione strigna telescope classfits        
+        """                         
         try:                
-            return 'SRT-{}-{}-{}'.format(
-                        p_scan['scheduled']['receiver_code'][0],
-                        p_scan['scheduled']['backend_name'][:3],
-                        _polarizationString(p_scan['frontend']['polarizations'])
+            return '{}-{}-{}-{}'.format(
+                        p_section['scheduled']['antenna'][:3],
+                        p_section['scheduled']['receiver_code'][0],
+                        p_bk[:3],
+                        p_pol
                         )
         except Exception as e:
             raise ValueError("can't build TELESCOP string [err]: " + str(e))

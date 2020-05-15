@@ -159,9 +159,12 @@ class Awarness_fitszilla():
         """
         Keywords from summary.fits
         """
-        l_keys= [ 'restfreq' ]        
+        l_keys= [ 'restfreq', 'backend_name' ]        
         l_restFreq= self.m_intermediate['sum_restfreq'] * unit.MHz
-        l_values= [l_restFreq]        
+        if self.m_intermediate['sum_backend_name']== 0.0:
+            self.m_intermediate['sum_backend_name']= 'UNKNOWN'
+            self._errorFromMissingKeyword('scheduled', 'obs_backend_name')
+        l_values= [l_restFreq, self.m_intermediate['sum_backend_name']]        
         self.m_processedRepr['summary']= dict(zip(l_keys, l_values))
         print(self.m_processedRepr['summary'])
             
@@ -184,15 +187,11 @@ class Awarness_fitszilla():
             self.m_intermediate['obs_el_offset']*unit.rad
         self.m_intermediate['file_name']= self.m_fileName
         self.m_intermediate['obs_vlsr'] *=  unit.Unit("km/s")
-        "todo : trasportare le coordinate  per ogni feed?"   
-        if self.m_intermediate['obs_backend_name']== 0.0:
-            self.m_intermediate['obs_backend_name']= 'UNKNOWN'
-            self._errorFromMissingKeyword('scheduled', 'obs_backend_name')
+        "todo : trasportare le coordinate  per ogni feed?"           
         l_scheduled= {}
         try:
             l_scheduled['source']= self.m_intermediate['obs_source']               
-            l_scheduled['receiver_code']= self.m_intermediate['obs_receiver_code']            
-            l_scheduled['backend_name']= self.m_intermediate['obs_backend_name']            
+            l_scheduled['receiver_code']= self.m_intermediate['obs_receiver_code']                  
             l_scheduled['antenna']= self.m_intermediate['obs_site']
             l_scheduled['date']= self.m_intermediate['obs_date']
             l_scheduled['ra']= self.m_intermediate['obs_ra']
@@ -343,7 +342,7 @@ class Awarness_fitszilla():
             l_innerDict= {}
             l_innerDict['scheduled']= self.m_scheduled.copy()
             l_innerDict['backend']= l_backEnds[l_elBe]
-            l_innerDict['frontend']= l_frontEnds[l_elBe]
+            l_innerDict['frontend']= l_frontEnds[l_elBe]            
             l_innerDict['spectrum']= {}            
             " flag cal data separation before integration "
             l_innerDict['spectrum']['data']={}
@@ -659,8 +658,11 @@ class Awarness_fitszilla():
                     else: # spectrum or single pol
                         " manage pwr spectrum "
                         l_oneTable = QTable()
-                        l_shape= l_coo["time_mjd"].shape
+                        l_shape= l_coo["time_mjd"].shape        
                         l_pol= l_chx['frontend']['polarizations']                                        
+                        " uniform polarization strings "
+                        if l_pol== 'LCP': l_pol= 'LL'
+                        if l_pol== 'RCP': l_pol= 'RR'    
                         l_polShaped= np.full(l_shape, l_pol)                        
                         l_keys= [l_coo["data_time"],l_polShaped,l_coo["data_az"],
                                  l_coo["data_el"],l_coo["data_derot_angle"], l_coo["data_ra"],
@@ -678,6 +680,8 @@ class Awarness_fitszilla():
                                 col=  Column(v, name= n )
                             l_oneTable.add_column(col)  
                         " group and aggregate "
+                        l_integrationTime = len(l_oneTable) * l_chx['backend']['integration_time']
+                        l_chx['backend']['integration_time']= l_integrationTime
                         l_oneTable= l_oneTable.group_by(['pol','flag_cal'])                        
                         l_oneTableAggregated= l_oneTable.groups.aggregate(np.mean)
                         l_chx['groups']= l_oneTableAggregated
