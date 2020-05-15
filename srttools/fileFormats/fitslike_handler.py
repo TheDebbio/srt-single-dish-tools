@@ -201,11 +201,11 @@ class Fitslike_handler():
         but generally per feed
         """
         
-        def _getGroupPol(p_group):
+        def _getGroupPol( p_group):
             """ Get Polarization flag """
             return p_group['pol']
         
-        def _is_cal(p_group):
+        def _is_cal(p_subscan,p_group):
             """
             Genera il flag calibrazione attiva
 
@@ -213,12 +213,23 @@ class Fitslike_handler():
             ----------
             p_sub : astropy table group 
                 group with flag_cal
+                
+            p_subscan : subscan with meta data 
+                group with flag_cal
 
             Returns
             -------
             true calibrazione attiva
 
-            """                        
+            """              
+            l_signal= p_subscan['scheduled']['signal']            
+            if l_signal in kws['keys_cal_on']:
+                return True
+                " @todo keyword subtype ? "
+                " Controllar anche flag_cal any"
+            elif np.any(p_group['flag_cal']):
+                return True
+
             if p_group['flag_cal'] > 0: 
                 return True            
             return False
@@ -268,7 +279,7 @@ class Fitslike_handler():
             for l_feed in l_subscan:
                 " prepare on off group keys hirearchy "
                 if l_feed not in self.m_group_on_off_cal.keys():
-                    self.m_group_on_off_cal[l_feed]={}                            
+                    self.m_group_on_off_cal[l_feed]={}
                 #pdb.set_trace()
                 " Section (l_chx) navigation "
                 for l_chx in l_subscan[l_feed]:
@@ -292,51 +303,79 @@ class Fitslike_handler():
                                 }
                             " scanning joined table group "
                             " cal on off for table group  "
-                            l_isCal= _is_cal(group)
+                            l_isCal= _is_cal(l_chObj, group)
                             l_isOn= _is_on(l_chObj)
                             l_pol= _getGroupPol(group)
                             " on off group keys hirearchy "
-                            if l_chx not in self.m_group_on_off_cal[l_feed][l_chx].keys():
-                                self.m_group_on_off_cal[l_feed][l_chx][l_pol]= l_onOffdict
+                            if l_pol not in self.m_group_on_off_cal[l_feed][l_chx].keys():
+                                self.m_group_on_off_cal[l_feed][l_chx][l_pol]= l_onOffdict                            
                             " Grouping feed sub scans on off cal on off "
                             if l_isOn and not l_isCal: # ON group
                                 l_on= self.m_group_on_off_cal[l_feed][l_chx][l_pol]['on']
-                                l_on= vstack([l_on, group])
+                                try:
+                                    self.m_group_on_off_cal[l_feed][l_chx][l_pol]['on']= vstack([l_on, group])
+                                except Exception as e:
+                                    self.m_logger.error("{}-{}-{}-on table stacking exception : {}".format(l_feed, l_chx, l_pol,str(e)))
                                 self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx + ' is on ')
                             elif not l_isOn and not l_isCal:  # OFF group
                                 l_off= self.m_group_on_off_cal[l_feed][l_chx][l_pol]['off']
-                                l_off= vstack([l_off, group])
+                                try:
+                                    self.m_group_on_off_cal[l_feed][l_chx][l_pol]['off']= vstack([l_off, group])                                
+                                except Exception as e:
+                                    self.m_logger.error("{}-{}-{}-off table stacking exception : {}".format(l_feed, l_chx, l_pol,str(e)))
+                                self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx + ' is off ')
                             elif l_isOn and  l_isCal: # CAL ON group
                                 l_calon= self.m_group_on_off_cal[l_feed][l_chx][l_pol]['cal_on']
-                                l_calon= vstack([l_calon, group])
+                                try:
+                                    self.m_group_on_off_cal[l_feed][l_chx][l_pol]['cal_on']= vstack([l_calon, group])
+                                except Exception as e:
+                                    self.m_logger.error("{}-{}-{}-cal_on table stacking exception : {}".format(l_feed, l_chx, l_pol,str(e)))
+                                self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx + ' is cal on ')
                             elif not l_isOn and  l_isCal: # CAL OFF group
                                 l_caloff= self.m_group_on_off_cal[l_feed][l_chx][l_pol]['cal_off']
-                                l_caloff= vstack([l_caloff, group])
-                    " Aggregate data for section and pol, repeat for every section "                    
-                    for l_pol in self.m_group_on_off_cal[l_feed][l_chx].keys:
-                        " for every pol in this feed- section "
-                        " on "
-                        l_on= self.m_group_on_off_cal[l_feed][l_chx][l_pol]['on']
-                        self.m_group_on_off_cal[l_feed][l_chx][l_pol]['on']= \
-                            l_on.group_by(['pol']).groups.aggregate(np.mean)
-                        " off "
-                        l_off= self.m_group_on_off_cal[l_feed][l_chx][l_pol]['off']
-                        self.m_group_on_off_cal[l_feed][l_chx][l_pol]['off']= \
-                            l_off.group_by(['pol']).groups.aggregate(np.mean)
-                        " cal on "
-                        l_calOn= self.m_group_on_off_cal[l_feed][l_chx][l_pol]['cal_on']
-                        self.m_group_on_off_cal[l_feed][l_chx][l_pol]['cal_on']= \
-                            l_calOn.group_by(['pol']).groups.aggregate(np.mean)
-                        " cal on "
-                        l_calOff= self.m_group_on_off_cal[l_feed][l_chx][l_pol]['cal_off']
-                        self.m_group_on_off_cal[l_feed][l_chx][l_pol]['cal_off']= \
-                            l_calOff.group_by(['pol']).groups.aggregate(np.mean)
-                        
+                                try:
+                                    self.m_group_on_off_cal[l_feed][l_chx][l_pol]['cal_off']= vstack([l_caloff, group])
+                                except Exception as e:
+                                    self.m_logger.error("{}-{}-{}-cal_off table stacking exception : {}".format(l_feed, l_chx, l_pol,str(e)))
+                                self.m_logger.info('feed ' + str(l_feed) + ' ' + l_chx + ' is cal off ')
+                   
+                                        
                 if self.m_scanType == 'map':
                     " @todo on off in caso di mappe "
                     pass 
                 
-                        
+    """
+        def _ToDictWithMean(p_table) -> dict:
+            "
+            Disgregate :) and build a single row dictionary
+            Gets unit from column names _u_unit
+            "
+            "  "
+            l_out={}
+            for field in p_table.colnames:
+                splits= field.split('_u_')
+                if len(splits) > 1:
+                    l_out[splits[0]]= np.mean(p_table[field], axis=0)
+                    l_out[splits[0]] *= unit.Unit(splits[1])
+                else:
+                    try:
+                        l_out[field]= np.mean(p_table[field], axis=0)             
+                    except TypeError as e:
+                        " cannot mean strings"
+                        l_out[field]= p_table[field][0]
+            return l_out
+        
+        "   "
+        " Aggregate data for section and pol, repeat for every section "                                        
+        for l_pol in self.m_group_on_off_cal[l_feed][l_chx].keys():
+            " for every pol in this feed- section "          
+            for l_group in self.m_group_on_off_cal[l_feed][l_chx][l_pol].keys():
+                l_dest= self.m_group_on_off_cal[l_feed][l_chx][l_pol][l_group]
+                self.m_group_on_off_cal[l_feed][l_chx][l_pol][l_group]= _ToDictWithMean(l_dest)
+        
+    """                    
+    
+    
     
     def normalize(self):
         """                
@@ -377,8 +416,8 @@ class Fitslike_handler():
                         l_calMarkTemp= l_pol[0]['frontend']['cal_mark_temp']                         
                     except:
                         self.m_logger.warning("[{}][{}][{}]['on'] is empty (why?)".format(l_feed,ch,l_pol))
-                        continue
-                    " @todo portare qui le modifiche al raggruppamento delle pol con table astropy "
+                        continue                    
+                    " @todo disgrega le tabelle.."
                     " Avg off "
                     l_offAvgData= []
                     for el in l_section['off']:

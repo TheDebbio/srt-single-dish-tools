@@ -633,20 +633,29 @@ class Awarness_fitszilla():
                         U= (data[:, -l_bins: ], "RL")
                         l_tGroup=[]
                         for pol in L, R, Q, U:                                            
-                            l_keys= [l_coo["data_time"], pol[1], l_coo["data_az"],
-                                     l_coo["data_el"],l_coo["data_derot_angle"],l_coo["data_ra"],
-                                     l_coo["data_dec"], l_chx['extras']['weather'], pol[0],
-                                     l_spec["flag_cal"]]
-                            l_names= ["data_time", "pol", "data_az",
-                                    "data_el", "data_derot_anngle", "data_ra",
-                                    "data_dec", "weather", "data", "flag_cal"]
-                            l_table= QTable(l_keys, names= l_names)
-                            l_tGroup.append(l_table)
-                        " group and aggregation "
-                        l_oneTable= vstack(l_tGroup)
-                        l_oneTable= l_oneTable.group_by(['pol', 'flag_cal'])
-                        l_oneTableAggregated= l_oneTable.groups.aggregate(np.mean)
-                        l_chx['groups']= l_oneTableAggregated
+                            try:
+                                l_keys= [l_coo["data_time"], pol[1], l_coo["data_az"],
+                                         l_coo["data_el"],l_coo["data_derot_angle"],l_coo["data_ra"],
+                                         l_coo["data_dec"], l_chx['extras']['weather'], pol[0],
+                                         l_spec["flag_cal"]]
+                                l_names= ["data_time", "pol", "data_az",
+                                        "data_el", "data_derot_anngle", "data_ra",
+                                        "data_dec", "weather", "data", "flag_cal"]
+                                l_table= QTable(l_keys, names= l_names)
+                                l_tGroup.append(l_table)
+                            except Exception as e:
+                                traceback.print_exc()
+                                self.m_logger.error("Exception splitting pol for table: " +str(e) )
+                                pdb.set_trace()
+                                continue
+                        " group and aggregation " 
+                        if l_tGroup:
+                            l_oneTable= vstack(l_tGroup)
+                            l_oneTable= l_oneTable.group_by(['pol', 'flag_cal'])
+                            l_oneTableAggregated= l_oneTable.groups.aggregate(np.mean)
+                            l_chx['groups']= l_oneTableAggregated
+                        else:
+                            l_chx['groups']= QTable()
                     else: # spectrum or single pol
                         " manage pwr spectrum "
                         l_oneTable = QTable()
@@ -670,7 +679,6 @@ class Awarness_fitszilla():
                             l_oneTable.add_column(col)  
                         " group and aggregate "
                         l_oneTable= l_oneTable.group_by(['pol','flag_cal'])                        
-                        print(l_oneTable)
                         l_oneTableAggregated= l_oneTable.groups.aggregate(np.mean)
                         l_chx['groups']= l_oneTableAggregated
                     

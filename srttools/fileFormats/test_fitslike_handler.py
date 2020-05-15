@@ -14,12 +14,12 @@ import os
 import fitslike_commons
 import fitslike_handler
 
-nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/20181210-232201-24-18-W3OH_small'
-nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/very_small'
+nodding_dir_small = '/home/debbio/discos/Scan/SARDARA_Nodding/20181210-232201-24-18-W3OH_small'
+nodding_dir_very_small = '/home/debbio/discos/Scan/SARDARA_Nodding/very_small'
 nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/20181210-232201-24-18-W3OH'
 xarcos_a= '/home/debbio/discos/Scan/XARCOS/20191230-100156-30-19-Cep_Kband'
 xarcos_jan= '/home/debbio/discos/Scan/XARCOS/orikl-MED-211119'
-input_dir = xarcos_jan
+input_dir = nodding_dir
 output_fname_prefix= '/debbio-'
 nodding_zilla_1_8 = '20181210-232307-24-18-W3OH_001_008.fits'
 
@@ -35,6 +35,8 @@ class TestFitslike_handler():
         l_fh.setOutputPath(l_outPath)
         l_fh.scan_data(input_dir)
         l_fh.group_on_off_cal()
+        pdb.set_trace()
+        """
         l_fh.normalize()
         l_fh.ClassFitsAdaptations('on',)
         l_fh.classfitsWrite('on', 'on')
@@ -42,6 +44,7 @@ class TestFitslike_handler():
         l_fh.classfitsWrite('on', 'cal')
         #l_fh._on_off_match()
         #pdb.set_trace()
+        """
         
 if __name__ == "__main__":
     l_commons = fitslike_commons.Fitslike_commons()    
