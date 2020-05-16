@@ -309,13 +309,19 @@ class Awarness_fitszilla():
         """ Pre check backend columns, old MED backend sw lacks of this 2 columns on on section table 
            We got bw and freq from rf input table, freq is first spectrum channel if freq and in this case
            needs to be calculated from sky frep and lo
-         """        
-        if not isinstance(self.m_intermediate['be_frequency'], list):
+         """  
+        "@todo rivedere perchè non distinguo correttamente tra lista e None "
+        try:
+            len(self.m_intermediate['be_frequency'])
+        except:            
             self.m_intermediate['be_frequency'] =  self.m_intermediate['fe_frequency'] \
-                                                - self.m_intermediate['fe_local_oscillator']
-        if not isinstance(self.m_intermediate['be_bandwidth'], list):
-            self.m_intermediate['be_bandwidth'] = self.m_intermediate['fe_bandwidth']
-                             
+                                                - self.m_intermediate['fe_local_oscillator']                    
+            self.m_logger.warning("section table frequency column not found ")
+        try:
+            len(self.m_intermediate['be_bandwidth']) 
+        except:
+            self.m_intermediate['be_bandwidth'] = self.m_intermediate['fe_bandwidth']                             
+            self.m_logger.warning("section table bandwidth column not found ")
         #  zip backend
         l_backEnds= {}                        
         l_zipBackend= {}
