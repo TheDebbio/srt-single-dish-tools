@@ -315,8 +315,7 @@ class Awarness_fitszilla():
                                                 - self.m_intermediate['fe_local_oscillator']
         if not isinstance(self.m_intermediate['be_bandwidth'], list):
             self.m_intermediate['be_bandwidth'] = self.m_intermediate['fe_bandwidth']
-        
-                
+                             
         #  zip backend
         l_backEnds= {}                        
         l_zipBackend= {}
@@ -332,18 +331,21 @@ class Awarness_fitszilla():
         except Exception as e:
             self.m_logger.error("back end zip error: " +str(e))            
             traceback.print_exc()                    
+        
         # create dict[backend_id]= back end
         for l_zipBe in l_zipBackend:
             l_beDict= dict(zip(l_beDictKeys, l_zipBe))
-            l_beDict['integration_time']= self.m_intermediate['be_integration']
+            l_beDict['integration_time']= self.m_intermediate['be_integration']            
+            l_beDict['bandwidth'] *= unit.Unit('MHz')
             l_backEnds[l_beDict['id']]= l_beDict.copy()  
+            
         # Creates chX_feed_pol: frontend, backend, spectrum            
         for l_elBe in l_backEnds.keys():            
             l_innerDict= {}
             l_innerDict['scheduled']= self.m_scheduled.copy()
-            l_innerDict['backend']= l_backEnds[l_elBe]
-            l_innerDict['frontend']= l_frontEnds[l_elBe]            
-            l_innerDict['spectrum']= {}            
+            l_innerDict['frontend']= l_frontEnds[l_elBe] 
+            l_innerDict['backend']= l_backEnds[l_elBe]                     
+            l_innerDict['spectrum']= {}
             " flag cal data separation before integration "
             l_innerDict['spectrum']['data']={}
             l_innerDict['spectrum']['data']= np.asarray(
@@ -669,8 +671,8 @@ class Awarness_fitszilla():
                                  l_coo["data_dec"], l_chx['extras']['weather'], l_spec['data'],
                                  l_spec["flag_cal"]]
                         l_names= ["data_time_mjd", "pol", "data_az",
-                                "data_el", "data_derot_anngle", "data_ra",
-                                "data_dec_rad", "weather", "data", "flag_cal"]
+                                "data_el", "data_derot_angle", "data_ra",
+                                "data_dec", "weather", "data", "flag_cal"]
                         for n, v in zip(l_names, l_keys):
                             " If i have no quantity but i have a scalar .."
                             try:                                

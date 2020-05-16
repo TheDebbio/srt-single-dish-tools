@@ -10,6 +10,7 @@ import astropy.units as unit
 from astropy.table import QTable, vstack
 from astropy.time import Time
 import astropy.constants as const
+from collections import defaultdict
 import fitslike_commons
 import sys
 import fitslike
@@ -279,12 +280,11 @@ class Fitslike_handler():
             for l_feed in l_subscan:
                 " prepare on off group keys hirearchy "
                 if l_feed not in self.m_group_on_off_cal.keys():
-                    self.m_group_on_off_cal[l_feed]={}
-                #pdb.set_trace()
-                " Section (l_chx) navigation "
+                    self.m_group_on_off_cal[l_feed]={}                
+                " Section (l_chx) navigation "                
                 for l_chx in l_subscan[l_feed]:
                     if 'ch_' not in l_chx:
-                        continue
+                        continue                    
                     l_chObj= l_subscan[l_feed][l_chx]
                     " on off group keys hirearchy "
                     if l_chx not in self.m_group_on_off_cal[l_feed].keys():
@@ -344,7 +344,8 @@ class Fitslike_handler():
                                         
                 if self.m_scanType == 'map':
                     " @todo on off in caso di mappe "
-                    pass 
+                    pass         
+        
    
     def normalize(self):
         """                
@@ -376,7 +377,7 @@ class Fitslike_handler():
             
         """ 
 
-        def _ToDictWithMean(p_table) -> dict:
+        def _tableToDict(p_table) -> dict:
             """
             Disgregate :) and build a single row dictionary
             Gets unit from column names _u_unit
@@ -386,11 +387,11 @@ class Fitslike_handler():
             for field in p_table.colnames:
                 splits= field.split('_u_')
                 if len(splits) > 1:
-                    l_out[splits[0]]= np.mean(p_table[field], axis=0)
+                    l_out[splits[0]]= p_table[field].data.data
                     l_out[splits[0]] *= unit.Unit(splits[1])
                 else:
                     try:
-                        l_out[field]= np.mean(p_table[field], axis=0)             
+                        l_out[field]= p_table[field].data.data
                     except TypeError as e:
                         " cannot mean strings"
                         l_out[field]= p_table[field][0]
@@ -401,8 +402,7 @@ class Fitslike_handler():
             for ch in self.m_group_on_off_cal[l_feed].keys():
                 l_section= self.m_group_on_off_cal[l_feed][ch]                                         
                 for pol in ['LL', 'RR', 'LR', 'RL']:
-                    if pol not in l_section.keys(): continue
-                    l_polarization= l_section[pol]
+                    if pol not in l_section.keys(): continue                    
                     " get calibration mark temperature if available "
                     try:
                         l_calMarkTemp= l_section['frontend']['cal_mark_temp']                         
@@ -410,37 +410,29 @@ class Fitslike_handler():
                         self.m_logger.warning("[{}][{}][{}]['on'] is empty (why?)".format(l_feed,ch,pol))
                         continue                      
                     " Here i have feed - section - pol - on/off/cals "
-                    " i want to decompose table group to a dictionary "                    
-                    for group in l_polarization.keys():
-                        self.m_group_on_off_cal[l_feed][ch][pol]= _ToDictWithMean(l_polarization[group])                    
+                    " i want to decompose table group to a dictionary "                                        
+                    for group in l_section[pol].keys():
+                        self.m_group_on_off_cal[l_feed][ch][pol][group]= _tableToDict(l_section[pol][group])                          
+                    l_polarization= self.m_group_on_off_cal[l_feed][ch][pol]
                     " Avg off "               
-                    l_offAvgData= []
-                    for el in l_polarization['off']:
-                        l_offAvgData.append(el['data'])
-                    l_offAvg= np.mean(l_offAvgData, axis= 0)                
+                    l_offAvgData= []                         
+                    l_offAvg= np.mean(l_polarization['off']['data'], axis= 0)                
                     " Avg call on "
                     l_calOnAvg= None
-                    if len(l_polarization['cal_on']):
-                        l_CalOnAvgData= []
-                        for el in l_polarization['cal_on']:
-                            l_CalOnAvgData.append(el['data'])                    
-                        l_calOnAvg= np.mean(l_CalOnAvgData, axis= 0)
+                    if l_polarization['cal_on']['data'].shape[0] :                                         
+                        l_calOnAvg= np.mean(l_polarization['cal_on']['data'], axis= 0)
                         l_calOnAvg= (l_calOnAvg - l_offAvg) / l_offAvg
                     " Avg cal off "
                     l_calOffAvg= None
-                    if len(l_polarization['cal_off']):
-                        l_CalOffAvgData= []
-                        for el in l_polarization['cal_off']:
-                            l_CalOffAvgData.append(el['data'])
-                        l_calOffAvg= np.mean(l_CalOffAvgData, axis= 0)
+                    if l_polarization['cal_off']['data'].shape[0]:  
+                        l_calOffAvg= np.mean(l_polarization['cal_off']['data'], axis= 0)
                         l_calOffAvg = (l_calOffAvg - l_offAvg) / l_offAvg    
                     " On - Off " 
-                    on_off= []
-                    for elOn in l_polarization['on']:
-                        on= np.array(elOn['data'])
-                        on_off.append( (on - l_offAvg)/l_offAvg )                    
+                    on_off= []                    
+                    for elOn in l_polarization['on']['data']:                        
+                        on_off.append( (elOn - l_offAvg)/l_offAvg )
                     " adding on_off list to section "
-                    l_polarization['on_off']= on_off        
+                    l_polarization['on_off']= on_off
                     " Rescale with cal mark temp "
                     " average non lienarity from receiver at differents power input levels "
                     cal = np.concatenate((l_calOnAvg, l_calOffAvg))
@@ -459,8 +451,8 @@ class Fitslike_handler():
                         for elOnOff in l_polarization['on_off']:
                             calibrated.append(elOnOff * calibration_factor)
                         " adding calibrated data to section"
-                        self.m_group_on_off_cal[l_feed][ch][pol]['on_off']= on_off
-                        self.m_group_on_off_cal[l_feed][ch][pol]['calibrated']= calibrated
+                        self.m_group_on_off_cal[l_feed][ch][pol]['on_off']= np.array(on_off)
+                        self.m_group_on_off_cal[l_feed][ch][pol]['calibrated']= np.array(calibrated)
                     except Exception as e:
                         traceback.print_exc()                        
                         self.m_no_cal= True
@@ -486,95 +478,133 @@ class Fitslike_handler():
         " @todo inserire il campo cal is on ? quindi diversificare on ed off ?"      
         " @todo gestire i dati in caso di campo singolo spettro mediato o serie di spettri"        
         for l_feed in self.m_group_on_off_cal:        
+            classfits= []
             for l_ch in self.m_group_on_off_cal[l_feed]:                                          
-                    " navigating polarizations "
-                    l_chx= self.m_group_on_off_cal[l_feed][l_ch]
-                    for pol in ['LL', 'RR', 'LR', 'RL']:                        
-                        if pol not in self.m_group_on_off_cal[l_feed][l_ch].keys(): continue
-                        l_polarization= self.m_group_on_off_cal[l_feed][l_ch][pol]        
-                        #pdb.set_trace()
-                        " Generic observation data copy to dedicated dict, more copies "
-                        " below during calculations "
-                        self.m_obs_general_data={}
-                        self.m_obs_general_data['ra']= l_chx['scheduled']['ra'].to(unit.deg).value
-                        self.m_obs_general_data['dec']= l_chx['scheduled']['dec'].to(unit.deg).value
-                        self.m_obs_general_data['source']= l_chx['scheduled']['source']
-                        self.m_obs_general_data['date-red']= Time.now().to_datetime().strftime('%d/%m/%y')
-                        " classfits new dict filling process "
-                        l_polarization['classfits']={}
-                        " ch by ch "
-                        try:                                                        
-                            " Lavoro con i dati integrati "
-                            " ut "                                                                    
-                            l_tMjd= l_polarization['data_time_mjd']
-                            l_timeMjd= Time(l_tMjd, format='mjd', scale='utc')
-                            l_polarization['classfits']['UT']= ( l_tMjd - np.floor(l_tMjd)) * 86400                                
-                            " date "
-                            l_polarization['classfits']['DATE-OBS']= l_timeMjd.strftime('%d/%m/%y') 
-                            " lsts "
-                            l_lsts= l_timeMjd.sidereal_time('apparent', \
-                                      fitslike_commons.Fitslike_commons.\
-                                          get_site_location(l_chx['scheduled']['antenna']).lon)
-                            l_lsts= l_lsts.value * unit.hr                              
-                            " infos "                    
-                            l_polarization['classfits']['OBJECT']= l_chx['scheduled']['source']
-                            l_polarization['classfits']['LINE']= "F{}-{:3.3f}-MHz"\
-                                .format(l_chx['frontend']['feed'], l_chx['backend']['bandwidth'])
-                            self.m_obs_general_data['line']= l_polarization['classfits']['LINE']
-                            try:
-                                #pdb.set_trace()
-                                l_polarization['classfits']['TELESCOP']=\
-                                    self.m_commons.class_telescope_name(l_chx,self.m_summary['summary']['backend_name'], pol)
-                            except ValueError as e:
-                                self.m_logger.error(str(e))
-                            l_mH2O= l_polarization['weather']
-                            l_polarization['classfits']['MH2O']= l_mH2O
-                            " temp "
-                            l_polarization['classfits']['TSYS']= 1.0
-                            l_polarization['classfits']['CALTEMP']= l_chx['frontend']['cal_mark_temp'].value
-                            " time "
-                            l_polarization['classfits']['LST'] = l_lsts.to('s').value                                     
-                            "  "
-                            pdb.set_trace()
-                            "@todo controllare qui"
-                            l_polarization['classfits']['CDELT1']= (l_chx['frontend']['bandwidth'] / 
-                                                        l_chx['backend']['bins']).to('Hz')
-                            " freq and velocity "                    
-                            l_polarization['classfits']['RESTFREQ']= self.m_summary['summary']['restfreq'].to(unit.Hz).value                                                
-                            self.m_obs_general_data['restfreq']= l_polarization['classfits']['RESTFREQ']                              
-                            l_polarization['classfits']['VELOCITY']= l_chx['scheduled']['vlsr'].to("m/s").value
-                            l_df= (l_chx['backend']['bandwidth'] / l_chx['backend']['bins']).to('Hz')
-                            l_polarization['classfits']['CDELT1']= l_df.value
-                            self.m_obs_general_data['cdelt1']= l_polarization['classfits']['CDELT1']
-                            l_deltav= - l_df/ l_polarization['classfits']['RESTFREQ'] * const.c
-                            l_polarization['classfits']['DELTAV']= l_deltav.value
-                            " LOG test "
-                            #self.m_logger.warn("RESTFREQ {}".format(l_polarization['classfits']['RESTFREQ']))                                                
-                            " Objects Coordinates "
-                            l_polarization['classfits']['CDELT2'] = l_chx['scheduled']['ra_offset'].to(unit.deg).value
-                            l_polarization['classfits']['CDELT3'] = l_chx['scheduled']['dec_offset'].to(unit.deg).value
-                            l_polarization['classfits']['AZIMUTH']= l_polarization['data_az'].to(unit.deg).value
-                            l_polarization['classfits']['ELEVATIO']= l_polarization['data_el'].to(unit.deg).value
-                            l_polarization['classfits']['CRVAL2']= l_polarization['data_ra'].to(unit.deg).value
-                            l_polarization['classfits']['CRVAL3']= l_polarization['data_dec'].to(unit.deg).value
-                            " data "
-                            l_polarization['classfits']['OBSTIME'] = l_chx['backend']['integration_time']
-                            l_polarization['classfits']['MAXIS1'] = l_chx['backend']['bins']
-                            self.m_obs_general_data['maxis1']= l_polarization['classfits']['MAXIS1']
-                            " calibration might be not present "
-                            try:
-                                l_polarization['classfits']['SPECTRUM_CAL']= l_polarization['calibrated']          
-                            except Exception as e:
-                                l_polarization['classfits']['SPECTRUM_CAL']= np.zeros(len(l_polarization['data'])) 
-                            l_polarization['classfits']['SPECTRUM_RAW']= l_polarization['data']
-                            l_polarization['classfits']['SPECTRUM_ON_OFF']= l_polarization['on_off']
-                            l_polarization['classfits']['CRPIX1']=  l_chx['backend']['bins'] // 2 + 1           
-                        except Exception as e:
-                            traceback.print_exc()
-                            self.m_logger.error("Error preparing class data: " +str(e))
-                    
+                " navigating polarizations "            
+                l_chx= self.m_group_on_off_cal[l_feed][l_ch]
+                for pol in ['LL', 'RR', 'LR', 'RL']:                        
+                    if pol not in self.m_group_on_off_cal[l_feed][l_ch].keys(): continue
+                    " We work starting from 'on' data set "
+                    l_polarization= self.m_group_on_off_cal[l_feed][l_ch][pol]['on']        
+                    " Data retreiving one level up from 'on' data "
+                    if 'calibrated' in self.m_group_on_off_cal[l_feed][l_ch][pol].keys():                        
+                        calibrated_data= self.m_group_on_off_cal[l_feed][l_ch][pol]['calibrated']
+                    else:
+                        calibrated_data= None
+                    if 'on_off' in self.m_group_on_off_cal[l_feed][l_ch][pol].keys():                        
+                        on_off_data= self.m_group_on_off_cal[l_feed][l_ch][pol]['on_off']
+                    else:
+                        on_off_data= None
+                    #pdb.set_trace()
+                    " Generic observation data copy to dedicated dict, more copies "
+                    " below during calculations "
+                    self.m_obs_general_data={}
+                    self.m_obs_general_data['ra']= l_chx['scheduled']['ra'].to(unit.deg).value
+                    self.m_obs_general_data['dec']= l_chx['scheduled']['dec'].to(unit.deg).value
+                    self.m_obs_general_data['source']= l_chx['scheduled']['source']
+                    self.m_obs_general_data['date-red']= Time.now().to_datetime().strftime('%d/%m/%y')
+                    " classfits new dict filling process "
+                    l_polarization['classfits']={}
+                    " ch by ch "
+                    try:                             
+                        " data first to get shapes "
+                        if calibrated_data is None:
+                            calibrated_data= np.zeros((l_polarization['data'].shape))                                
+                        l_polarization['classfits']['SPECTRUM_CAL']= calibrated_data
+                        l_polarization['classfits']['SPECTRUM_RAW']= l_polarization['data']                        
+                        l_polarization['classfits']['SPECTRUM_ON_OFF']= on_off_data         
+                        " data shape they must be equals ( on_off cal on ) "
+                        data_shape= l_polarization['classfits']['SPECTRUM_RAW'].shape                                         
+                        l_polarization['classfits']['CRPIX1']=  l_chx['backend']['bins'] // 2 + 1                                 
+                        " Lavoro con i dati integrati "
+                        " ut "                                                                                        
+                        l_tMjd= l_polarization['data_time_mjd']
+                        l_timeMjd= Time(l_tMjd, format='mjd', scale='utc')
+                        l_polarization['classfits']['UT']= ( l_tMjd - np.floor(l_tMjd)) * 86400                                
+                        " date "
+                        l_polarization['classfits']['DATE-OBS']= l_timeMjd.strftime('%d/%m/%y') 
+                        " lsts "
+                        l_lsts= l_timeMjd.sidereal_time('apparent', \
+                                  fitslike_commons.Fitslike_commons.\
+                                      get_site_location(l_chx['scheduled']['antenna']).lon)
+                        l_lsts= l_lsts.value * unit.hr                              
+                        " infos "                    
+                        l_polarization['classfits']['OBJECT']= l_chx['scheduled']['source']
+                        l_polarization['classfits']['LINE']= "F{}-{:3.3f}-MHz"\
+                            .format(l_chx['frontend']['feed'], l_chx['backend']['bandwidth'])
+                        self.m_obs_general_data['line']= l_polarization['classfits']['LINE']
+                        try:
+                            #pdb.set_trace()
+                            l_polarization['classfits']['TELESCOP']=\
+                                self.m_commons.class_telescope_name(l_chx,self.m_summary['summary']['backend_name'], pol)
+                        except ValueError as e:
+                            self.m_logger.error(str(e))
+                        l_mH2O= l_polarization['weather']
+                        l_polarization['classfits']['MH2O']= l_mH2O
+                        " temp "
+                        l_polarization['classfits']['TSYS']= 1.0
+                        l_polarization['classfits']['CALTEMP']= l_chx['frontend']['cal_mark_temp'].value
+                        " time "
+                        l_polarization['classfits']['LST'] = l_lsts.to('s').value                                     
+                        "  "                                                                                    
+                        l_polarization['classfits']['CDELT1']= (l_chx['frontend']['bandwidth'] / l_chx['backend']['bins']).to('Hz')
+                        " freq and velocity "                    
+                        l_polarization['classfits']['RESTFREQ']= self.m_summary['summary']['restfreq'].to(unit.Hz).value                                                
+                        self.m_obs_general_data['restfreq']= l_polarization['classfits']['RESTFREQ']                              
+                        l_polarization['classfits']['VELOCITY']= l_chx['scheduled']['vlsr'].to("m/s").value
+                        l_df= (l_chx['backend']['bandwidth'] / l_chx['backend']['bins']).to('Hz')
+                        l_polarization['classfits']['CDELT1']= l_df.value
+                        self.m_obs_general_data['cdelt1']= l_polarization['classfits']['CDELT1']
+                        l_deltav= - l_df/ l_polarization['classfits']['RESTFREQ'] * const.c
+                        l_polarization['classfits']['DELTAV']= l_deltav.value
+                        " LOG test "
+                        #self.m_logger.warn("RESTFREQ {}".format(l_polarization['classfits']['RESTFREQ']))                                                
+                        " Objects Coordinates "
+                        l_polarization['classfits']['CDELT2'] = l_chx['scheduled']['ra_offset'].to(unit.deg).value
+                        l_polarization['classfits']['CDELT3'] = l_chx['scheduled']['dec_offset'].to(unit.deg).value
+                        l_polarization['classfits']['AZIMUTH']= l_polarization['data_az'].to(unit.deg).value
+                        l_polarization['classfits']['ELEVATIO']= l_polarization['data_el'].to(unit.deg).value
+                        l_polarization['classfits']['CRVAL2']= l_polarization['data_ra'].to(unit.deg).value
+                        l_polarization['classfits']['CRVAL3']= l_polarization['data_dec'].to(unit.deg).value
+                        " data "
+                        l_polarization['classfits']['OBSTIME'] = l_chx['backend']['integration_time']
+                        l_polarization['classfits']['MAXIS1'] = l_chx['backend']['bins']
+                        self.m_obs_general_data['maxis1']= l_polarization['classfits']['MAXIS1']                                            
                         
-    def classfitsWrite(self, p_group, p_on_what):
+                        " we have to shape classfits data properly according to data shape "
+                        " es data shape is 12, 16384 we have to replicate data this shape"                          
+                        rows= data_shape[0]
+                        for k in l_polarization['classfits'].keys():
+                            l_value= l_polarization['classfits'][k]
+                            if "SPECTRUM" in k:
+                                continue
+                            try:
+                                " this prevent already shaped (rows,) to be warped  "
+                                l_polarization['classfits'][k]= np.full((rows,), l_value)
+                            except Exception  as e :
+                                self.m_logger.error("Error reshaping classfits data: " +str(e))                                
+                        
+                        classfits.append(l_polarization['classfits'])
+                    except Exception as e:
+                        traceback.print_exc()
+                        self.m_logger.error("Error preparing class data: " +str(e))
+            
+            " merging pol classfits dicts "
+            " classfits is a list of classfits data dict "
+            classList= defaultdict(list)
+            for d in classfits:
+                for k,v in d.items():                  
+                    try:            
+                        if not len(v): continue
+                        for n in range(v.shape[0]):  
+                            classList[k].append( v[n] )
+                    except Exception as e:
+                        self.m_logger.error("Exception on appending data classfits data pot: " +str(e))                        
+                        
+            self.m_group_on_off_cal[l_feed]['classlist']= classList
+
+                        
+    def classfitsWrite(self, p_on_what):
         """
         Scrittura file con calcolo header
         header prende i dati dai dati generici ricavati dalla scansione scansione      
@@ -593,48 +623,46 @@ class Fitslike_handler():
         """        
         " clear - create destination folder "
         if not os.path.exists(self.m_outputPath):
-            os.makedirs(self.m_outputPath)            
+            os.makedirs(self.m_outputPath)                        
         " for every feed "
         for l_feed in self.m_group_on_off_cal:            
-            l_outFileName= self.m_outputPath+ "feed_{}_{}_{}.fits".format(l_feed, p_group, p_on_what)
+            " @todo remove "
+            if  l_feed not in range(0,9):continue
+            l_outFileName= self.m_outputPath+ "feed_{}_{}.fits".format(l_feed,p_on_what)
             self.m_logger.info("Preparing classfits file : " + l_outFileName)
             l_newCols=[]
-            " for every column expressed in classfits definition.."
+            " for every column expressed in classfits definition .."
             for classCol in self.m_commons.getClassfitsColumnsZip():
                 " [ name, form, unit ] column by column data building "                
-                " fill one column looking into every feed[on], and builds column data "                     
-                l_colData=[]                                
+                " fill one column looking into every feed[on], and builds column data "                                                               
                 l_columnFound = False                 
-                " conditionals, some fields needs dedicated approach"
-                for l_chx in self.m_group_on_off_cal[l_feed]:                    
-                    for l_ch in self.m_group_on_off_cal[l_feed][l_chx][p_group]:
-                        " converted fits data matches with classfits columns? "
-                        " some columns need special care"
-                        l_inferredCol= classCol[0]
-                        "  we can choose between on on-off and calibrated spectrum for 'on' group "
-                        if classCol[0] == "SPECTRUM":
-                            l_inferredCol += '_'+ p_on_what.upper()                                
-                        " "                                 
-                        if l_inferredCol in l_ch['classfits'].keys():
-                            " found match, add data to column data "
-                            l_colData.append(l_ch['classfits'][l_inferredCol])
-                            l_columnFound= True
+                " conditionals, some fields needs dedicated approach"                
+                l_classList= self.m_group_on_off_cal[l_feed]['classlist']                               
+                " converted fits data matches with classfits columns? "
+                " some columns need special care"
+                l_inferredCol= classCol[0]
+                "  we can choose between on on-off and calibrated spectrum for 'on' group "
+                if classCol[0] == "SPECTRUM":
+                    l_inferredCol += '_'+ p_on_what.upper()                                
+                " "
+                if l_inferredCol in l_classList.keys():
+                    " found match, add data to column data "                    
+                    l_columnFound= True
                 try:
                     " adding column to classfits if fitszilla representation matches it"                    
                     if l_columnFound:                        
-                        " some fields needs dedicated approach"
-                        if classCol[0] == "SPECTRUM":
-                            l_newCols.append(fits.Column(name= classCol[0], format= "{}D".format(len(l_colData[0])),\
-                                                         unit= classCol[2], array= l_colData))
+                        " some fields needs dedicated approach "                        
+                        if classCol[0] == "SPECTRUM":                                                                                    
+                            l_rows= l_classList[l_inferredCol][0].shape[0]
+                            l_newCols.append(fits.Column(array= l_classList[l_inferredCol],name= classCol[0],format= "{}D".format(l_rows),unit= classCol[2]))
                         else:                    
-                            l_newCols.append(fits.Column(name= classCol[0], format= classCol[1],\
-                                                unit= classCol[2], array= l_colData) )
+                            l_newCols.append(fits.Column(array= l_classList[l_inferredCol],name= classCol[0],format= classCol[1],unit= classCol[2]) )
+                            
                 except Exception as e:
                     self.m_logger.error("classfits column creation exception: "+ str(e))
-                    self.m_logger.error("column: " +str(classCol))
-                    self.m_logger.error("column data: " + str(l_colData))                    
+                    self.m_logger.error("column: " +str(classCol))                    
                                                                                 
-            l_hdData= self.m_obs_general_data
+            l_hdData= self.m_obs_general_data            
             " header "
             l_hdu= fits.PrimaryHDU() 
             try:
@@ -653,14 +681,17 @@ class Fitslike_handler():
                 self.m_logger.error("Exception filling " + l_outFileName + " header data: "+ str(e))                    
                 " data "
             try:
-                l_cdefs= fits.ColDefs(l_newCols)
+                " TEST "
+                for col in l_newCols:
+                    print(col.name + " " + str(col.array.shape))                
+                l_cdefs= fits.ColDefs(l_newCols)                                
                 l_hdu= fits.BinTableHDU().from_columns(l_cdefs)                                        
-            except Exception as e:                
+            except Exception as e: 
+                traceback.print_exc()
                 self.m_logger.error("Exception creating classfits model file")
                 self.m_logger.error("classfits file: " + l_outFileName)
                 self.m_logger.error(str(e))
-                return
-                #pdb.set_trace()
+                return                
             try:
                 if os.path.exists(l_outFileName):
                     os.remove(l_outFileName)

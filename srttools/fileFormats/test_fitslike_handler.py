@@ -36,16 +36,12 @@ class TestFitslike_handler():
         l_fh.scan_data(input_dir)
         l_fh.group_on_off_cal()        
         l_fh.normalize()
-        l_fh.ClassFitsAdaptations()
-        pdb.set_trace()
-        """        
-        
-        l_fh.classfitsWrite('on', 'on')
-        l_fh.classfitsWrite('on', 'on_off')
-        l_fh.classfitsWrite('on', 'cal')
-        #l_fh._on_off_match()
+        l_fh.ClassFitsAdaptations()        
+        l_fh.classfitsWrite('raw')
+        l_fh.classfitsWrite('on_off')
+        l_fh.classfitsWrite('cal')
         #pdb.set_trace()
-        """
+        
         
 if __name__ == "__main__":
     l_commons = fitslike_commons.Fitslike_commons()    
