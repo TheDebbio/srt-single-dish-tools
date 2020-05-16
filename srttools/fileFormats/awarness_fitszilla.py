@@ -638,32 +638,56 @@ class Awarness_fitszilla():
                         R= (data[:, l_bins: 2*l_bins], "RR")
                         Q= (data[:, 2*l_bins: 3*l_bins],"LR")
                         U= (data[:, -l_bins: ], "RL")
-                        l_tGroup=[]
-                        for pol in L, R, Q, U:                                            
-                            try:
-                                l_keys= [l_coo["data_time"], pol[1], l_coo["data_az"],
+                        l_tGroup=[]                        
+                        for obj in [L, R, Q, U]:
+                            poldata= obj[0].astype(np.int32)
+                            polLabel= obj[1]
+                            polLabel= np.full((poldata.shape[0],), polLabel)                            
+                            l_oneTable= QTable()                            
+                            try:                                
+                                l_keys= [l_coo["data_time"], polLabel, l_coo["data_az"],
                                          l_coo["data_el"],l_coo["data_derot_angle"],l_coo["data_ra"],
-                                         l_coo["data_dec"], l_chx['extras']['weather'], pol[0],
+                                         l_coo["data_dec"], l_chx['extras']['weather'], poldata,
                                          l_spec["flag_cal"]]
-                                l_names= ["data_time", "pol", "data_az",
+                                l_names= ["data_time_mjd", "pol", "data_az",
                                         "data_el", "data_derot_anngle", "data_ra",
                                         "data_dec", "weather", "data", "flag_cal"]
-                                l_table= QTable(l_keys, names= l_names)
-                                l_tGroup.append(l_table)
+                                for n, v in zip(l_names, l_keys):
+                                    " If i have scalar without quantity "
+                                    try:                                
+                                        name_unit= n +"_u_" + str(v.unit)
+                                        col=  Column(v.value, name= name_unit )                                        
+                                    except:                                                    
+                                        col=  Column(v, name= n )
+                                    l_oneTable.add_column(col)  
+                                
                             except Exception as e:
                                 traceback.print_exc()
-                                self.m_logger.error("Exception splitting pol for table: " +str(e) )
+                                self.m_logger.error("Exception creating data tables fro stokes pols : " +str(e) )
                                 pdb.set_trace()
-                                continue
+                                continue                            
+                            " add this pol table to table list "
+                            l_tGroup.append(l_oneTable)
                         " group and aggregation " 
                         if l_tGroup:
-                            l_oneTable= vstack(l_tGroup)
-                            l_oneTable= l_oneTable.group_by(['pol', 'flag_cal'])
+                            l_oneTable= vstack(l_tGroup)                            
+                            l_oneTable= l_oneTable.group_by(['pol', 'flag_cal'])                            
                             l_oneTableAggregated= l_oneTable.groups.aggregate(np.mean)
+                            " @todo for an unkown reason i cannot aggregate data column..doing it manually "                            
+                            if 'data' not in l_oneTableAggregated.colnames:
+                                self.m_logger.warning("Aggretating data column manually")
+                                l_spectrum= []
+                                for gr in l_oneTable.groups:
+                                    l_data= gr['data']
+                                    l_spectrum.append(np.mean(l_data, axis= 0))
+                                l_dataCol= Column(l_spectrum, name= 'data')
+                                l_oneTableAggregated.add_column(l_dataCol)
+                                l_oneTableAggregated= l_oneTableAggregated.group_by(['pol', 'flag_cal'])
                             l_chx['groups']= l_oneTableAggregated
+                            
                         else:
                             l_chx['groups']= QTable()
-                    else: # spectrum or single pol
+                    else: # SPECTRUM OR SINGLE POL 
                         " manage pwr spectrum "
                         l_oneTable = QTable()
                         l_shape= l_coo["time_mjd"].shape        
@@ -680,7 +704,7 @@ class Awarness_fitszilla():
                                 "data_el", "data_derot_angle", "data_ra",
                                 "data_dec", "weather", "data", "flag_cal"]
                         for n, v in zip(l_names, l_keys):
-                            " If i have no quantity but i have a scalar .."
+                            " If i have scalar without quantity "
                             try:                                
                                 name_unit= n +"_u_" + str(v.unit)
                                 col=  Column(v.value, name= name_unit )
@@ -690,10 +714,20 @@ class Awarness_fitszilla():
                         " group and aggregate "
                         l_integrationTime = len(l_oneTable) * l_chx['backend']['integration_time']
                         l_chx['backend']['integration_time']= l_integrationTime
-                        l_oneTable= l_oneTable.group_by(['pol','flag_cal'])                        
+                        l_oneTable= l_oneTable.group_by(['pol','flag_cal'])             
                         l_oneTableAggregated= l_oneTable.groups.aggregate(np.mean)
+                        " @todo for an unkown reason i cannot aggregate data column..doing it manually "
+                        if 'data' not in l_oneTableAggregated.colnames:
+                            self.m_logger.warning("Aggretating data column manually")
+                            l_spectrum= []
+                            for gr in l_oneTable.groups:
+                                l_data= gr['data']
+                                l_spectrum.append(np.mean(l_data, axis= 0))
+                            l_dataCol= Column(l_spectrum, name= 'data')
+                            l_oneTableAggregated.add_column(l_dataCol)
+                            l_oneTableAggregated= l_oneTableAggregated.group_by(['pol', 'flag_cal'])
                         l_chx['groups']= l_oneTableAggregated
-                    
+                                                
                     " remove data already present in groups "                        
                     del l_coo["time_mjd"]
                     del l_coo["data_time"]

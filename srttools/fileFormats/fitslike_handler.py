@@ -344,8 +344,7 @@ class Fitslike_handler():
                                         
                 if self.m_scanType == 'map':
                     " @todo on off in caso di mappe "
-                    pass         
-        
+                    pass                
    
     def normalize(self):
         """                
@@ -392,7 +391,7 @@ class Fitslike_handler():
                 else:
                     try:
                         l_out[field]= p_table[field].data.data
-                    except TypeError as e:
+                    except TypeError:
                         " cannot mean strings"
                         l_out[field]= p_table[field][0]
             return l_out
@@ -414,19 +413,33 @@ class Fitslike_handler():
                     for group in l_section[pol].keys():
                         self.m_group_on_off_cal[l_feed][ch][pol][group]= _tableToDict(l_section[pol][group])                          
                     l_polarization= self.m_group_on_off_cal[l_feed][ch][pol]
+                    " flag can calibrate "
+                    can_calibrate= True
                     " Avg off "               
-                    l_offAvgData= []                         
-                    l_offAvg= np.mean(l_polarization['off']['data'], axis= 0)                
+                    l_offAvgData= []            
+                    try:
+                        l_offAvg= np.mean(l_polarization['off']['data'], axis= 0)                
+                    except KeyError:
+                        self.m_logger.warning(" off not present in {}-{}-{}".format(l_feed,ch,pol))
+                        can_calibrate= False
                     " Avg call on "
                     l_calOnAvg= None
-                    if l_polarization['cal_on']['data'].shape[0] :                                         
-                        l_calOnAvg= np.mean(l_polarization['cal_on']['data'], axis= 0)
-                        l_calOnAvg= (l_calOnAvg - l_offAvg) / l_offAvg
+                    try:
+                        if l_polarization['cal_on']['data'].shape[0] :                                         
+                            l_calOnAvg= np.mean(l_polarization['cal_on']['data'], axis= 0)
+                            l_calOnAvg= (l_calOnAvg - l_offAvg) / l_offAvg
+                    except KeyError :
+                        self.m_logger.warning(" cal_on not present in {}-{}-{}".format(l_feed,ch,pol))
+                        can_calibrate= False
                     " Avg cal off "
                     l_calOffAvg= None
-                    if l_polarization['cal_off']['data'].shape[0]:  
-                        l_calOffAvg= np.mean(l_polarization['cal_off']['data'], axis= 0)
-                        l_calOffAvg = (l_calOffAvg - l_offAvg) / l_offAvg    
+                    try:
+                        if l_polarization['cal_off']['data'].shape[0]:  
+                            l_calOffAvg= np.mean(l_polarization['cal_off']['data'], axis= 0)
+                            l_calOffAvg = (l_calOffAvg - l_offAvg) / l_offAvg    
+                    except KeyError:
+                        self.m_logger.warning(" cal_off not present in {}-{}-{}".format(l_feed,ch,pol))
+                        can_calibrate= False
                     " On - Off " 
                     on_off= []                    
                     for elOn in l_polarization['on']['data']:                        
@@ -435,6 +448,9 @@ class Fitslike_handler():
                     l_polarization['on_off']= on_off
                     " Rescale with cal mark temp "
                     " average non lienarity from receiver at differents power input levels "
+                    if not can_calibrate:
+                        self.m_logger.error("Cannot calibrate without cal_on, cal_off data ")
+                        continue
                     cal = np.concatenate((l_calOnAvg, l_calOffAvg))
                     try:
                         if len(cal) == 0:
@@ -517,7 +533,7 @@ class Fitslike_handler():
                         data_shape= l_polarization['classfits']['SPECTRUM_RAW'].shape                                         
                         l_polarization['classfits']['CRPIX1']=  l_chx['backend']['bins'] // 2 + 1                                 
                         " Lavoro con i dati integrati "
-                        " ut "                                                                                        
+                        " ut "                                                                
                         l_tMjd= l_polarization['data_time_mjd']
                         l_timeMjd= Time(l_tMjd, format='mjd', scale='utc')
                         l_polarization['classfits']['UT']= ( l_tMjd - np.floor(l_tMjd)) * 86400                                

@@ -14,7 +14,12 @@ import fitslike_handler
 
 nodding_dir = '/home/debbio/discos/Scan/SARDARA_Nodding/20181210-232201-24-18-W3OH/'
 nodding_zilla_1_8 = '20181210-232307-24-18-W3OH_001_008.fits'
-
+xarcos_dir = '/home/debbio/discos/Scan/XARCOS/20200225-193301-Maintenance-orikl/'
+xarcos_file= '20200225-193301-Maintenance-orikl_001_001.fits'
+input_dir = xarcos_dir
+input_file = xarcos_file
+#input_dir = nodding_dir
+#input_file = nodding_zilla_1_8
 
 class TestFitslike_handler():
     """Fitslike handler unit test"""
@@ -39,8 +44,7 @@ class TestFitsLike_arch():
         l_fits = fits.open(p_file)        
         l_aware = awarness_fitszilla.Awarness_fitszilla(l_fits, p_file)        
         l_intermediateDict = l_aware.parse()
-        l_processedDict = l_aware.process() 
-        #pdb.set_trace()
+        l_processedDict = l_aware.process()         
         l_fitsLike = fitslike.Fitslike(l_processedDict)        
         pdb.set_trace()          
 
@@ -58,6 +62,6 @@ if __name__ == "__main__":
     l_unitArch = TestFitsLike_arch()
     l_unitArch.test_instance()
     # Awareness
-    l_file = nodding_dir + nodding_zilla_1_8
+    l_file = input_dir + input_file
     l_unitArch.test_Awareness_fitszilla_parse(l_file)
     
