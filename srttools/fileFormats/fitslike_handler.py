@@ -441,11 +441,12 @@ class Fitslike_handler():
                         self.m_logger.warning(" cal_off not present in {}-{}-{}".format(l_feed,ch,pol))
                         can_calibrate= False
                     " On - Off " 
-                    on_off= []                    
+                    on_off= []                                      
                     for elOn in l_polarization['on']['data']:                        
                         on_off.append( (elOn - l_offAvg)/l_offAvg )
                     " adding on_off list to section "
-                    l_polarization['on_off']= on_off
+                    l_polarization['on_off']= on_off                    
+                    self.m_group_on_off_cal[l_feed][ch][pol]['on_off']= np.array(on_off)
                     " Rescale with cal mark temp "
                     " average non lienarity from receiver at differents power input levels "
                     if not can_calibrate:
@@ -466,8 +467,7 @@ class Fitslike_handler():
                         calibrated=[]
                         for elOnOff in l_polarization['on_off']:
                             calibrated.append(elOnOff * calibration_factor)
-                        " adding calibrated data to section"
-                        self.m_group_on_off_cal[l_feed][ch][pol]['on_off']= np.array(on_off)
+                        " adding calibrated data to section"                        
                         self.m_group_on_off_cal[l_feed][ch][pol]['calibrated']= np.array(calibrated)
                     except Exception as e:
                         traceback.print_exc()                        
@@ -552,7 +552,7 @@ class Fitslike_handler():
                         try:
                             #pdb.set_trace()
                             l_polarization['classfits']['TELESCOP']=\
-                                self.m_commons.class_telescope_name(l_chx,self.m_summary['summary']['backend_name'], pol)
+                                self.m_commons.class_telescope_name(l_chx,self.m_summary['summary']['backend_name'], pol, l_ch)
                         except ValueError as e:
                             self.m_logger.error(str(e))
                         l_mH2O= l_polarization['weather']
@@ -605,8 +605,8 @@ class Fitslike_handler():
                         traceback.print_exc()
                         self.m_logger.error("Error preparing class data: " +str(e))
             
-            " merging pol classfits dicts "
-            " classfits is a list of classfits data dict "
+            " merging classfits dat dicts by polarization "
+            " classfits is a list of classfits data dict "            
             classList= defaultdict(list)
             for d in classfits:
                 for k,v in d.items():                  
@@ -614,7 +614,7 @@ class Fitslike_handler():
                         if not len(v): continue
                         for n in range(v.shape[0]):  
                             classList[k].append( v[n] )
-                    except Exception as e:
+                    except Exception as e:                        
                         self.m_logger.error("Exception on appending data classfits data pot: " +str(e))                        
                         
             self.m_group_on_off_cal[l_feed]['classlist']= classList

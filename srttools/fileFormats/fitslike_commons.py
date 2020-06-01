@@ -169,7 +169,7 @@ class Fitslike_commons():
             raise ValueError('Unrecognized polarization')
     
     @staticmethod 
-    def class_telescope_name(p_section, p_bk, p_pol):
+    def class_telescope_name(p_section, p_bk, p_pol, p_section_name):
         """
         Generazione strigna telescope classfits        
         """                         
@@ -177,7 +177,7 @@ class Fitslike_commons():
             return '{}-{}-{}-{}'.format(
                         p_section['scheduled']['antenna'][:3],
                         p_section['scheduled']['receiver_code'][0],
-                        p_bk[:3],
+                        p_bk[:3],                        
                         p_pol
                         )
         except Exception as e:

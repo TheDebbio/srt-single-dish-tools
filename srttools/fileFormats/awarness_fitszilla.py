@@ -16,6 +16,7 @@ import logging
 import os
 import traceback
 import pdb
+from memory_profiler import profile
 
 class Awarness_fitszilla():
     """fitszilla data parser"""
@@ -109,7 +110,7 @@ class Awarness_fitszilla():
         getter errors
         """
         return self.m_errors
-    
+        
     def process(self):
         """
         Parsed keyword processing
@@ -623,7 +624,7 @@ class Awarness_fitszilla():
         
         At the end of operation data table has integrated data and grouped table
         
-        @todo Attennzione che non riesco ad aggregare la tabella se inserisco i dati cone unit !!
+        @todo Attenzione, non riesco ad aggregare la tabella se inserisco i dati cone unit !!
         """
         for feed in self.m_processedRepr.keys():
                 for chx in self.m_processedRepr[feed]:
@@ -653,7 +654,7 @@ class Awarness_fitszilla():
                                         "data_el", "data_derot_anngle", "data_ra",
                                         "data_dec", "weather", "data", "flag_cal"]
                                 for n, v in zip(l_names, l_keys):
-                                    " If i have scalar without quantity "
+                                    # If i have scalar without quantity 
                                     try:                                
                                         name_unit= n +"_u_" + str(v.unit)
                                         col=  Column(v.value, name= name_unit )                                        
